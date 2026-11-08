@@ -76,8 +76,10 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 .tag .v{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
 .tag svg{width:16px;height:16px;flex:none}
 .tag.stale{opacity:.55}
+button.tag{font:inherit;color:inherit;cursor:pointer}
+button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
-.fridge{display:grid;grid-template-columns:auto auto auto;gap:1px 8px;align-items:baseline}
+.fridge{display:grid;grid-template-columns:auto auto auto auto;gap:1px 8px;align-items:baseline;text-align:left}
 .fridge b{grid-column:1}
 .fridge .lvl{font-family:var(--f-mono);font-size:9px;color:var(--faint)}
 
@@ -194,7 +196,7 @@ const ITEMS=[
  {key:'steam', type:'chip', id:ID.steam, label:'Steaming', icon:PROP, c:'var(--white)', x:79,y:33, mast:true},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true},
  {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:50,y:27},
- {key:'master',type:'temp',id:ID.master,label:'Master bedroom',x:40,y:18},
+ {key:'master',type:'temp',id:ID.master,label:'Bedroom',x:40,y:18},
  {key:'mainCabin',type:'temp',id:ID.mainCabin,label:'Main cabin',x:36,y:48},
  {key:'fridge',type:'fridge',id:ID.fridge,label:'Fridge',c:'var(--accent)',x:68,y:55},
  {key:'flood',type:'flood',id:ID.flood,label:'Washing machine',x:31,y:60},
@@ -217,6 +219,9 @@ const fmt=(v,d=1)=>v==null||isNaN(v)?'—':Number(v).toFixed(d);
 const ago=t=>{if(!t)return '—';const s=Math.round((Date.now()-t)/1000);return s<60?s+' s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
 const stale=t=>!t||Date.now()-t>20*60*1000;
 const posOf=it=>layout[it.key]||{x:it.x,y:it.y};
+const showRH=new Set();
+// humidity is hidden until the sensor (or its group) is tapped
+const rhSpan=(id,group)=>{const d=dev(id);return (showRH.has(group||id)&&d.rh!=null)?`<span class="v" style="color:var(--accent);font-size:11px">${fmt(d.rh,0)}%</span>`:''};
 const isOn=id=>pending[id]?pending[id].on:!!dev(id).on;
 const ledHtml=(id,c,label)=>{const d=dev(id);return `<button class="led ${isOn(id)?'on':''} ${pending[id]?'pending':''} ${d.online===false?'offline':''}" style="--c:${c}" data-id="${id}" aria-label="${esc(label)}: ${isOn(id)?'on':'off'}" aria-pressed="${isOn(id)}"></button>`};
 
@@ -232,10 +237,10 @@ function renderPlan(){
   $('#items').innerHTML=ITEMS.map(it=>{const p=posOf(it),d=dev(it.id);let inner='';
     if(it.type==='chip') inner=`<div class="tag"><span>${it.icon}</span><b>${esc(it.label)}</b>${ledHtml(it.id,it.c,it.label)}</div>`;
     else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
-    else if(it.type==='temp') inner=`<div class="tag ${stale(d.updated)?'stale':''}" title="${esc(d.name)} · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${d.rh!=null?`<span class="v" style="color:var(--muted);font-size:10px">${fmt(d.rh,0)}%</span>`:''}</div>`;
+    else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
     else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
-    else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]);return `<span class="v ${stale(x.updated)?'stale':''}">${fmt(x.tC)}°</span>`};
-      inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag fridge"><b>Fridge</b><span class="lvl">top</span>${t('refUp')}<span></span><span class="lvl">bottom</span>${t('refDown')}<b>Freezer</b><span class="lvl">top</span>${t('frzUp')}<span></span><span class="lvl">bottom</span>${t('frzDown')}</div>`;}
+    else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]);return `<span class="v ${stale(x.updated)?'stale':''}">${fmt(x.tC)}°</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
+      inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b><span class="lvl">top</span>${t('refUp')}<span></span><span class="lvl">bottom</span>${t('refDown')}<b>Freezer</b><span class="lvl">top</span>${t('frzUp')}<span></span><span class="lvl">bottom</span>${t('frzDown')}</button>`;}
     return `<div class="o item" data-key="${it.key}" style="left:${p.x}%;top:${p.y}%">${inner}</div>`;}).join('');
 
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
@@ -257,9 +262,9 @@ function renderVictron(){
    <div class="tile"><div class="lbl">Shore power <span class="state" style="color:${isOn(ID.shore)?'var(--good)':'var(--muted)'}">${isOn(ID.shore)?'To charger':'Off'}</span></div>
      <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.shore,'var(--good)','Shore power to charger')}<span>Shore power to charger</span></div>
      <div class="hint">Relay ${shore.online===false?'offline':'online'} · switch temp ${fmt(shore.deviceTemp,0)} °C</div></div>
-   <div class="tile"><div class="lbl">Victron chamber</div><div class="big">${fmt(inv.tC,1)}<small>°C</small></div>
+   <div class="tile"><div class="lbl">Victron chamber</div><button type="button" class="big" data-rh="${ID.inverter}" aria-expanded="${showRH.has(ID.inverter)}" title="Tap for humidity" style="background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:var(--f-display)">${fmt(inv.tC,1)}<small>°C</small>${showRH.has(ID.inverter)&&inv.rh!=null?`<small style="color:var(--accent);margin-left:10px">${fmt(inv.rh,0)}% RH</small>`:''}</button>
      <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.fan,'var(--accent)','Victron chamber fan')}<span>Fan ${isOn(ID.fan)?'running':'off'}</span></div>
-     <div class="hint">Sensor ${ago(inv.updated)} · humidity ${fmt(inv.rh,0)} %</div></div>`;
+     <div class="hint">Sensor ${ago(inv.updated)}</div></div>`;
   const rows=[['State of charge',fmt(b.soc,1),'%'],['Voltage',fmt(b.voltage,2),'V'],['Current',fmt(b.current,2),'A'],['Power',fmt(b.power,0),'W'],['Consumed',fmt(b.consumedAh,1),'Ah'],['Time to go',esc(b.timeToGo),''],['Chamber temperature',fmt(inv.tC,1),'°C']];
   $('#vtable').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td><td class="n" style="color:var(--faint)">${r[0]==='Chamber temperature'?ago(inv.updated):ago(b.updated)}</td></tr>`).join('');
 
@@ -280,7 +285,7 @@ function renderList(){
   $('#devlist').innerHTML=Object.entries(groups).map(([g,list])=>`<div class="group"><h3>${g}</h3>${list.sort((a,b)=>a.name.localeCompare(b.name)).map(d=>{
     if(d.kind==='relay') return `<div class="row">${ledHtml(d.id,'var(--accent)',d.name)}<span class="name">${esc(d.name)}</span><span class="val ${isOn(d.id)?'on':''}">${pending[d.id]?'…':isOn(d.id)?'ON':'OFF'}</span></div>`;
     if(d.kind==='flood') return `<div class="row"><span class="name">${esc(d.name)}<div class="sub">battery ${fmt(d.battery,0)} %</div></span><span class="val" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER':'Dry'}</span></div>`;
-    return `<div class="row"><span class="name">${esc(d.name)}<div class="sub">${ago(d.updated)} · battery ${fmt(d.battery,0)} %</div></span><span class="val on">${fmt(d.tC)} °C<div class="sub">${fmt(d.rh,0)} %</div></span></div>`;}).join('')}</div>`).join('');
+    return `<div class="row" data-rh="${d.id}" style="cursor:pointer" title="Tap for humidity"><span class="name">${esc(d.name.replace(/^master\s+(.)/i,(m,c)=>c.toUpperCase()))}<div class="sub">${ago(d.updated)} · battery ${fmt(d.battery,0)} %</div></span><span class="val on">${fmt(d.tC)} °C${showRH.has(d.id)&&d.rh!=null?`<div class="sub" style="color:var(--accent)">${fmt(d.rh,0)} % RH</div>`:''}</span></div>`;}).join('')}</div>`).join('');
 }
 
 function render(){renderPlan();renderVictron();renderList();}
@@ -372,6 +377,11 @@ document.addEventListener('click',async e=>{
   pending[id]={on:want,t:Date.now()}; render();
   try{await cloud('/device/relay/control',{id,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500);
   }catch(err){delete pending[id];toast('Could not switch: '+err.message);render();}
+});
+// tap any temperature (plan, fridge card, Victron chamber, list) to show / hide its humidity
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-rh]'); if(!t||arranging) return;
+  const k=t.dataset.rh; showRH.has(k)?showRH.delete(k):showRH.add(k); render();
 });
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,5000)}
 
