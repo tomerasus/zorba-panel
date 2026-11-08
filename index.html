@@ -68,6 +68,9 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 .navdot{pointer-events:none}
 .wash{position:absolute;pointer-events:none;border-radius:50%;opacity:0;transition:opacity .4s;mix-blend-mode:screen}
 .wash.on{opacity:1}
+.lit{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .5s;overflow:hidden}
+.lit.on{opacity:1}
+.plan .lit img{filter:brightness(1.25) sepia(.18) saturate(1.1) contrast(1.05)}
 .tag{display:flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--line);border-radius:6px;padding:3px 7px 3px 5px;white-space:nowrap;font-size:11px}
 .tag b{font-weight:500;color:var(--muted);font-size:10px;letter-spacing:.05em;text-transform:uppercase}
 .tag .v{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
@@ -203,7 +206,8 @@ const ITEMS=[
 ];
 // fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes; 0° = ahead (up)
 const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
-const WASH=[{id:ID.deckBow,x:47,y:25,w:58,h:30,col:'255,247,224'},{id:ID.deckStern,x:50,y:88,w:70,h:18,col:'255,247,224'}];
+// deck lights: a bright copy of the deck shows through an elliptical "pool" of light (x,y = centre, w,h = size in %)
+const WASH=[{id:ID.deckBow,x:48,y:17,w:80,h:34,col:'255,240,205'},{id:ID.deckStern,x:50,y:90,w:95,h:24,col:'255,240,205'}];
 
 let S={devices:{},bmv:null,history:[]}, layout={}, arranging=false, pending={}, dragging=null;
 const $=s=>document.querySelector(s);
@@ -221,7 +225,8 @@ function renderPlan(){
   const navOn=isOn(ID.steam);
   NAV.forEach(n=>{fx.push(`<div class="sector ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;background:conic-gradient(from ${n.from}deg, ${n.c} 0 ${n.span}deg, transparent 0)"></div>`);
     fx.push(`<span class="o led navdot ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></span>`);});
-  WASH.forEach(w=>fx.push(`<div class="wash ${isOn(w.id)?'on':''}" style="left:${w.x-w.w/2}%;top:${w.y-w.h/2}%;width:${w.w}%;height:${w.h}%;background:radial-gradient(ellipse at center,rgba(${w.col},.5),rgba(${w.col},.16) 45%,transparent 70%)"></div>`));
+  WASH.forEach(w=>{const m=`radial-gradient(ellipse ${w.w/2}% ${w.h/2}% at ${w.x}% ${w.y}%,#000 0,rgba(0,0,0,.85) 35%,rgba(0,0,0,.35) 70%,transparent 100%)`;
+    fx.push(`<div class="lit ${isOn(w.id)?'on':''}" style="-webkit-mask-image:${m};mask-image:${m}"><img src="zorbaabove.jpeg" alt=""><div style="position:absolute;inset:0;background:rgba(${w.col},.22);mix-blend-mode:screen"></div></div>`);});
   $('#fx').innerHTML=fx.join('');
 
   $('#items').innerHTML=ITEMS.map(it=>{const p=posOf(it),d=dev(it.id);let inner='';
