@@ -41,17 +41,23 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 
 /* plan */
 /* the boat panel fills the screen; the boat is as large as the screen height allows, centred */
-.plansec{position:relative;height:calc(100vh - 24px);height:calc(100dvh - 24px);min-height:420px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(ellipse at 50% 50%,#13202a 0%,var(--bg) 75%);display:flex;align-items:center;justify-content:center;overflow:hidden}
+/* edge to edge: cancels the page gutter and top padding; the backdrop is the photo's own white, dimmed exactly like the photo, so there is no frame */
+html,body{overflow-x:hidden}
+.plansec{position:relative;width:100vw;margin-left:calc(50% - 50vw);margin-top:calc(-1 * max(12px,env(safe-area-inset-top,0px)));height:100vh;height:100dvh;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden;isolation:isolate}
+.plansec::before{content:"";position:absolute;inset:0;z-index:-1;background:#fff;filter:brightness(.62) saturate(.85) contrast(1.05)}
 .plan-scroll{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-.ptop{position:absolute;z-index:6;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.ptop{position:absolute;z-index:6;top:calc(10px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
 .ptop>*{pointer-events:auto}
 .ptop .brand{display:grid;gap:6px;justify-items:start}
 .ptop .brand h1{font-size:30px;text-shadow:0 1px 8px #000c}
 .ptop .pill{background:color-mix(in srgb,var(--bg) 80%,transparent)}
 .pbtns{display:flex;gap:6px}
+.iconbtn{width:34px;height:34px;padding:0;justify-content:center;font-size:16px;letter-spacing:0}
+#conn{font-size:13px;color:var(--fg)}
 #planHint{position:absolute;z-index:6;bottom:10px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--accent);color:var(--accent);padding:6px 10px;border-radius:8px;white-space:nowrap}
 /* boat drawn bow-up: the source photo is bow-right, so it is rotated 90° inside a tall frame */
-.plan{position:relative;width:min(100%, calc((100vh - 24px) * 0.3765));width:min(100%, calc((100dvh - 24px) * 0.3765));max-width:100%;aspect-ratio:771/2048;margin:0 auto;touch-action:pan-y;overflow:hidden}
+.plan{position:relative;width:min(100%, calc(100vh * 0.3765));width:min(100%, calc(100dvh * 0.3765));max-width:100%;aspect-ratio:771/2048;margin:0 auto;touch-action:pan-y;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 3%,#000 97%,transparent);mask-image:linear-gradient(to right,transparent,#000 3%,#000 97%,transparent)}
 .plan img{position:absolute;left:50%;top:50%;width:265.63%;height:37.65%;max-width:none;transform:translate(-50%,-50%) rotate(-90deg);filter:brightness(.62) saturate(.85) contrast(1.05);user-select:none;pointer-events:none}
 .plan .bowtag,.plan .sterntag{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint)}
 .plan .bowtag{top:.4%} .plan .sterntag{bottom:.4%}
@@ -148,8 +154,8 @@ tr:last-child td{border-bottom:0}
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
-      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn"><i></i><span>Connecting…</span></span></div>
-      <div class="pbtns"><button class="pill" id="arrangeBtn" aria-pressed="false">Arrange layout</button><button class="pill" id="settingsBtn" aria-label="Settings">⚙</button></div>
+      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span></div>
+      <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill" id="settingsBtn" aria-label="Settings">⚙</button></div>
     </div>
     <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically.</span>
     <div class="plan-scroll"><div class="plan" id="plan">
@@ -349,12 +355,12 @@ async function refresh(){
     const {devices,bmv}=shape(data.devices_status||{}); record(bmv);
     S={ok:true,devices,bmv,history:hist};
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
-    const c=$('#conn');c.className='pill ok';c.querySelector('span').textContent=`Shelly Cloud · ${Object.keys(devices).length} devices`;
-  }catch(e){const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent=navigator.onLine?('Cloud error: '+e.message):'No internet on this phone';}
+    const c=$('#conn'),n=Object.keys(devices).length;c.className='pill ok';c.querySelector('span').textContent=n;c.title=`Shelly Cloud connected · ${n} devices`;
+  }catch(e){const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent=Object.keys(S.devices).length||'–';c.title=navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone';}
   polling=false;
   if(!dragging) render();
 }
-function start(){ $('#setup').hidden=!!CFG; if(CFG){refresh();} else {$('#conn').querySelector('span').textContent='Not connected';render();} }
+function start(){ $('#setup').hidden=!!CFG; if(CFG){refresh();} else {const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent='–';c.title='Not connected: tap ⚙ to enter the Shelly key';render();} }
 setInterval(refresh,5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()});
 
@@ -390,7 +396,7 @@ document.addEventListener('click',e=>{
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,5000)}
 
 // ---- arrange (drag items to their real place aboard) ----
-$('#arrangeBtn').onclick=()=>{arranging=!arranging;$('#arrangeBtn').setAttribute('aria-pressed',arranging);$('#arrangeBtn').textContent=arranging?'Done arranging':'Arrange layout';
+$('#arrangeBtn').onclick=()=>{arranging=!arranging;$('#arrangeBtn').setAttribute('aria-pressed',arranging);$('#arrangeBtn').title=arranging?'Done arranging':'Arrange layout';
   $('#plan').classList.toggle('arrange',arranging);$('#planHint').hidden=!arranging;};
 $('#plan').addEventListener('pointerdown',e=>{
   if(!arranging) return; const el=e.target.closest('.item'); if(!el) return;
