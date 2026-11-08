@@ -22,7 +22,7 @@
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
 button{font:inherit;color:inherit}
-.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(20px,env(safe-area-inset-top,0px)) 48px;display:grid;gap:20px}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(12px,env(safe-area-inset-top,0px)) 48px;display:grid;gap:20px}
 
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
 .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
@@ -40,16 +40,24 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 .hint{font-size:12px;color:var(--faint)}
 
 /* plan */
-.plan-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:radial-gradient(ellipse at 50% 50%,#13202a 0%,var(--bg) 75%)}
+/* the boat panel fills the screen; the boat is as large as the screen height allows, centred */
+.plansec{position:relative;height:calc(100vh - 24px);height:calc(100dvh - 24px);min-height:420px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(ellipse at 50% 50%,#13202a 0%,var(--bg) 75%);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.plan-scroll{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.ptop{position:absolute;z-index:6;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.ptop>*{pointer-events:auto}
+.ptop .brand{display:grid;gap:6px;justify-items:start}
+.ptop .brand h1{font-size:30px;text-shadow:0 1px 8px #000c}
+.ptop .pill{background:color-mix(in srgb,var(--bg) 80%,transparent)}
+.pbtns{display:flex;gap:6px}
+#planHint{position:absolute;z-index:6;bottom:10px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--accent);color:var(--accent);padding:6px 10px;border-radius:8px;white-space:nowrap}
 /* boat drawn bow-up: the source photo is bow-right, so it is rotated 90° inside a tall frame */
-.plan{position:relative;width:100%;max-width:100%;aspect-ratio:771/2048;margin:0 auto;touch-action:pan-y;overflow:hidden}
+.plan{position:relative;width:min(100%, calc((100vh - 24px) * 0.3765));width:min(100%, calc((100dvh - 24px) * 0.3765));max-width:100%;aspect-ratio:771/2048;margin:0 auto;touch-action:pan-y;overflow:hidden}
 .plan img{position:absolute;left:50%;top:50%;width:265.63%;height:37.65%;max-width:none;transform:translate(-50%,-50%) rotate(-90deg);filter:brightness(.62) saturate(.85) contrast(1.05);user-select:none;pointer-events:none}
 .plan .bowtag,.plan .sterntag{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint)}
 .plan .bowtag{top:.4%} .plan .sterntag{bottom:.4%}
 .plan .sidetag{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint);writing-mode:vertical-rl}
 .main{display:grid;gap:20px;min-width:0}
 .main>*{min-width:0}
-@media (min-width:980px){.main{grid-template-columns:440px minmax(0,1fr);align-items:start}.plansec{grid-row:span 2;position:sticky;top:16px}}
 .plan.arrange{outline:2px dashed var(--accent);outline-offset:-6px;touch-action:none}
 .plan.arrange .item{cursor:move;outline:1px dashed var(--accent);outline-offset:3px;border-radius:6px}
 .plan.arrange .item .led{pointer-events:none}
@@ -126,15 +134,6 @@ tr:last-child td{border-bottom:0}
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="brand"><h1>ZORBA</h1><span>SHILLA · ship systems panel</span></div>
-    <div class="status">
-      <span class="pill" id="conn"><i></i><span>Connecting…</span></span>
-      <button class="pill" id="arrangeBtn" aria-pressed="false">Arrange layout</button>
-      <button class="pill" id="settingsBtn">Settings</button>
-    </div>
-  </header>
-
   <section id="setup" class="victron" hidden>
     <h2>Connect to Shelly Cloud</h2>
     <p style="margin:0;max-width:62ch;color:var(--muted)">In the Shelly app open <b>User settings → Authorization cloud key</b>. Copy the key and the server address here. They are saved only in this phone's browser.</p>
@@ -147,8 +146,12 @@ tr:last-child td{border-bottom:0}
   </section>
 
   <div class="main">
-  <section class="plansec" style="display:grid;gap:10px">
-    <div class="sec-head"><h2>Deck plan</h2><span class="hint" id="planHint">Tap a light or switch to change it</span></div>
+  <section class="plansec" aria-label="Zorba deck plan">
+    <div class="ptop">
+      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn"><i></i><span>Connecting…</span></span></div>
+      <div class="pbtns"><button class="pill" id="arrangeBtn" aria-pressed="false">Arrange layout</button><button class="pill" id="settingsBtn" aria-label="Settings">⚙</button></div>
+    </div>
+    <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically.</span>
     <div class="plan-scroll"><div class="plan" id="plan">
       <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow up">
       <span class="sterntag">STERN</span><span class="bowtag">BOW</span>
@@ -204,8 +207,8 @@ const ITEMS=[
  {key:'heater',type:'relay',id:ID.heater,label:'Water heater',c:'var(--amber)',x:28,y:72},
  {key:'fan',type:'relay',id:ID.fan,label:'Victron fan',c:'var(--accent)',x:70,y:70},
  {key:'inverter',type:'temp',id:ID.inverter,label:'Inverter',x:70,y:77},
- {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:27,y:87},
- {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:71,y:87},
+ {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:27,y:83},
+ {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:70,y:91},
 ];
 // fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes; 0° = ahead (up)
 const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
@@ -356,7 +359,7 @@ setInterval(refresh,5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()});
 
 // ---- settings ----
-$('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#cfgServer').focus()};
+$('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
 $('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};
 $('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
 $('#setupForm').addEventListener('submit',async e=>{
@@ -388,7 +391,7 @@ function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeou
 
 // ---- arrange (drag items to their real place aboard) ----
 $('#arrangeBtn').onclick=()=>{arranging=!arranging;$('#arrangeBtn').setAttribute('aria-pressed',arranging);$('#arrangeBtn').textContent=arranging?'Done arranging':'Arrange layout';
-  $('#plan').classList.toggle('arrange',arranging);$('#planHint').textContent=arranging?'Drag items to where they are aboard. Saved automatically.':'Tap a light or switch to change it';};
+  $('#plan').classList.toggle('arrange',arranging);$('#planHint').hidden=!arranging;};
 $('#plan').addEventListener('pointerdown',e=>{
   if(!arranging) return; const el=e.target.closest('.item'); if(!el) return;
   e.preventDefault(); dragging={el,key:el.dataset.key}; el.setPointerCapture(e.pointerId);
