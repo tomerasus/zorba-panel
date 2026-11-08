@@ -252,8 +252,8 @@ function renderVictron(){
    <div class="tile"><div class="lbl">House bank <span class="state" style="color:${st[1]}">${st[0]}</span></div>
      <div class="big" style="color:${socCol}">${fmt(b.soc,1)}<small>%</small></div><div class="soc"><i style="width:${Math.max(0,Math.min(100,b.soc))}%;background:${socCol}"></i></div>
      <dl class="kv"><dt>Time to go</dt><dd>${esc(b.timeToGo)}</dd><dt>Consumed</dt><dd>${fmt(b.consumedAh,1)} Ah</dd></dl></div>
-   <div class="tile"><div class="lbl">Battery flow</div><div class="big">${fmt(b.power,0)}<small>W</small></div>
-     <dl class="kv"><dt>Voltage</dt><dd>${fmt(b.voltage,2)} V</dd><dt>Current</dt><dd>${b.current>0?'+':''}${fmt(b.current,2)} A</dd></dl></div>
+   <div class="tile"><div class="lbl">Battery flow</div><div class="big" style="color:${st[1]}">${b.current>0?'+':''}${fmt(b.current,1)}<small>A</small></div>
+     <dl class="kv"><dt>Power</dt><dd>${fmt(b.power,0)} W</dd><dt>Voltage</dt><dd>${fmt(b.voltage,2)} V</dd></dl></div>
    <div class="tile"><div class="lbl">Shore power <span class="state" style="color:${isOn(ID.shore)?'var(--good)':'var(--muted)'}">${isOn(ID.shore)?'To charger':'Off'}</span></div>
      <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.shore,'var(--good)','Shore power to charger')}<span>Shore power to charger</span></div>
      <div class="hint">Relay ${shore.online===false?'offline':'online'} · switch temp ${fmt(shore.deviceTemp,0)} °C</div></div>
