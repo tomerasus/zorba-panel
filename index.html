@@ -79,7 +79,7 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 button.tag{font:inherit;color:inherit;cursor:pointer}
 button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
-.fridge{display:grid;grid-template-columns:auto auto auto auto;gap:1px 8px;align-items:baseline;text-align:left}
+.fridge{display:grid;grid-template-columns:auto auto auto;gap:1px 8px;align-items:baseline;text-align:left}
 .fridge b{grid-column:1}
 .fridge .lvl{font-family:var(--f-mono);font-size:9px;color:var(--faint)}
 
@@ -240,7 +240,7 @@ function renderPlan(){
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
     else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
     else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]);return `<span class="v ${stale(x.updated)?'stale':''}">${fmt(x.tC)}°</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
-      inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b><span class="lvl">top</span>${t('refUp')}<span></span><span class="lvl">bottom</span>${t('refDown')}<b>Freezer</b><span class="lvl">top</span>${t('frzUp')}<span></span><span class="lvl">bottom</span>${t('frzDown')}</button>`;}
+      inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b>${t('refDown')}<b>Freezer</b>${t('frzDown')}</button>`;}
     return `<div class="o item" data-key="${it.key}" style="left:${p.x}%;top:${p.y}%">${inner}</div>`;}).join('');
 
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
