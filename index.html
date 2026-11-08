@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zorba Boat Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Chart-table instrument panel: boat plan first, devices where they live aboard, Victron power room below. Single dark look for night watch. */
+:root{
+  --bg:#0b1218; --panel:#111b23; --panel-2:#16232d; --line:#22333f;
+  --fg:#e3ebef; --muted:#8197a4; --faint:#4d6372;
+  --accent:#4fb3d9; --port:#ff3b3b; --stbd:#2fe07a; --white:#fff7e0; --amber:#ffb547;
+  --good:#2fe07a; --warn:#ffb547; --bad:#ff5a5a;
+  --f-display:"Saira Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+button{font:inherit;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(20px,env(safe-area-inset-top,0px)) 48px;display:grid;gap:20px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:40px;letter-spacing:.14em;margin:0;line-height:1}
+.brand span{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.06em}
+.status{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;background:none}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.pill.ok i{background:var(--good);box-shadow:0 0 6px var(--good)}
+.pill.bad i{background:var(--bad);box-shadow:0 0 6px var(--bad)}
+button.pill{cursor:pointer} button.pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+
+h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--faint)}
+
+/* plan */
+.plan-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:radial-gradient(ellipse at 50% 50%,#13202a 0%,var(--bg) 75%)}
+.plan{position:relative;min-width:860px;aspect-ratio:2048/771;margin:0 auto;touch-action:pan-x pan-y}
+.plan img{position:absolute;inset:0;width:100%;height:100%;filter:brightness(.62) saturate(.85) contrast(1.05);user-select:none;pointer-events:none}
+.plan .bowtag,.plan .sterntag{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;color:var(--faint);writing-mode:vertical-rl}
+.plan .bowtag{right:.6%} .plan .sterntag{left:.4%}
+.plan .sidetag{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint)}
+.plan.arrange{outline:2px dashed var(--accent);outline-offset:-6px;touch-action:none}
+.plan.arrange .item{cursor:move;outline:1px dashed var(--accent);outline-offset:3px;border-radius:6px}
+.plan.arrange .item .led{pointer-events:none}
+
+.o{position:absolute;transform:translate(-50%,-50%)}
+.item{display:flex;flex-direction:column;align-items:center;gap:5px}
+.led{width:14px;height:14px;border-radius:50%;border:1.5px solid #3a4b57;background:#1a242b;cursor:pointer;padding:0;display:block;flex:none;transition:background .25s,box-shadow .25s,border-color .25s}
+.led:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.led.on{border-color:var(--c);background:radial-gradient(circle at 35% 35%,#fff 0 18%,var(--c) 45%);box-shadow:0 0 6px 2px var(--c),0 0 18px 6px color-mix(in srgb,var(--c) 45%,transparent)}
+.led.pending{animation:pend 1s ease-in-out infinite}
+.led.offline{border-style:dashed;opacity:.5}
+@keyframes pend{50%{opacity:.35}}
+.sector{position:absolute;width:150px;height:150px;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;opacity:0;transition:opacity .3s;
+  -webkit-mask:radial-gradient(circle,#000 0,transparent 70%);mask:radial-gradient(circle,#000 0,transparent 70%)}
+.sector.on{opacity:.55}
+.navdot{pointer-events:none}
+.wash{position:absolute;pointer-events:none;border-radius:50%;opacity:0;transition:opacity .4s;mix-blend-mode:screen}
+.wash.on{opacity:1}
+.tag{display:flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--line);border-radius:6px;padding:3px 7px 3px 5px;white-space:nowrap;font-size:11px}
+.tag b{font-weight:500;color:var(--muted);font-size:10px;letter-spacing:.05em;text-transform:uppercase}
+.tag .v{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
+.tag svg{width:16px;height:16px;flex:none}
+.tag.stale{opacity:.55}
+.tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
+.fridge{display:grid;grid-template-columns:auto auto auto;gap:1px 8px;align-items:baseline}
+.fridge b{grid-column:1}
+.fridge .lvl{font-family:var(--f-mono);font-size:9px;color:var(--faint)}
+
+/* confirm popover */
+#confirm{position:fixed;z-index:20;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 40px #000a;max-width:calc(100vw - 32px);flex-wrap:wrap}
+#confirm .q{font-weight:500}
+.btn{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#06222e;font-weight:600}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#2a0606;font-weight:600}
+.btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+#toast{position:fixed;z-index:21;top:max(16px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--bad);color:#2a0606;font-weight:600;padding:8px 14px;border-radius:8px;max-width:calc(100vw - 32px)}
+
+/* device list */
+.devgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.group{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px;align-content:start;min-width:0}
+.group h3{margin:0 0 6px;font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.row:first-of-type{border-top:0}
+.row .name{flex:1;min-width:0}
+.row .val{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.row .val.on{color:var(--fg)}
+.row .sub{font-size:11px;color:var(--faint)}
+
+/* victron */
+.victron{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:16px}
+.vtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tile{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:8px;align-content:start;min-width:0}
+.tile .lbl{font-family:var(--f-display);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.state{font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;padding:1px 7px;border-radius:999px;border:1px solid currentColor;text-transform:uppercase}
+.big{font-family:var(--f-display);font-weight:600;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:18px;color:var(--muted);margin-left:2px;font-weight:500}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.soc{height:8px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+.soc i{display:block;height:100%;background:var(--good);transition:width .5s}
+.spark{width:100%;height:60px;display:block}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+th,td{padding:7px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-display);font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--faint);background:var(--bg)}
+td.n{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.foot{font-size:12px;color:var(--faint)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>ZORBA</h1><span>SHILLA · ship systems panel</span></div>
+    <div class="status">
+      <span class="pill" id="conn"><i></i><span>Connecting…</span></span>
+      <button class="pill" id="arrangeBtn" aria-pressed="false">Arrange layout</button>
+      <button class="pill" id="settingsBtn">Settings</button>
+    </div>
+  </header>
+
+  <section id="setup" class="victron" hidden>
+    <h2>Connect to Shelly Cloud</h2>
+    <p style="margin:0;max-width:62ch;color:var(--muted)">In the Shelly app open <b>User settings → Authorization cloud key</b>. Copy the key and the server address here. They are saved only in this phone's browser.</p>
+    <form id="setupForm" style="display:grid;gap:10px;max-width:520px">
+      <label style="display:grid;gap:4px"><span class="hint">Server address</span><input id="cfgServer" class="btn" style="text-align:left;cursor:text" placeholder="https://shelly-XX-eu.shelly.cloud" autocomplete="off" required></label>
+      <label style="display:grid;gap:4px"><span class="hint">Authorization cloud key</span><input id="cfgKey" class="btn" style="text-align:left;cursor:text" type="password" autocomplete="off" required></label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="submit">Connect</button><button class="btn" type="button" id="cfgForget">Forget key on this phone</button><button class="btn" type="button" id="cfgClose">Close</button></div>
+      <span class="hint" id="cfgMsg"></span>
+    </form>
+  </section>
+
+  <section style="display:grid;gap:10px">
+    <div class="sec-head"><h2>Deck plan</h2><span class="hint" id="planHint">Tap a light or switch to change it</span></div>
+    <div class="plan-scroll"><div class="plan" id="plan">
+      <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow to the right">
+      <span class="sterntag">STERN</span><span class="bowtag">BOW</span>
+      <span class="sidetag" style="top:1.5%">PORT</span><span class="sidetag" style="bottom:1.5%">STARBOARD</span>
+      <svg id="leaders" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      <div class="o" style="left:59.5%;top:47%;width:10px;height:10px;border-radius:50%;border:2px solid var(--muted);background:var(--bg)" title="Mast"></div>
+      <div id="fx"></div><div id="items"></div>
+    </div></div>
+  </section>
+
+  <section class="victron">
+    <div class="sec-head"><h2>Victron · power</h2><span class="hint" id="bmvUpd">BMV via Bluetooth → Shelly</span></div>
+    <div class="vtiles" id="vtiles"></div>
+    <div class="tile">
+      <div class="lbl">State of charge · last 24 h <span id="sparkNote" style="font-family:var(--f-mono);font-weight:400;letter-spacing:0;text-transform:none"></span></div>
+      <svg class="spark" id="spark" viewBox="0 0 600 60" preserveAspectRatio="none" aria-label="State of charge over the last 24 hours"></svg>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Reading</th><th style="text-align:right">Value</th><th style="text-align:right">Unit</th><th style="text-align:right">Updated</th></tr></thead>
+      <tbody id="vtable"></tbody>
+    </table></div>
+  </section>
+
+  <section style="display:grid;gap:10px">
+    <div class="sec-head"><h2>All Shelly devices</h2><span class="hint">Live from Shelly Cloud</span></div>
+    <div class="devgrid" id="devlist"></div>
+  </section>
+
+  <p class="foot">BMV field names are read from the Shelly script's virtual numbers 200–205 (SOC, voltage, current, power, consumed Ah, time to go). Temperatures update when the Bluetooth sensors report, usually every few minutes.</p>
+</div>
+
+<div id="confirm" hidden role="dialog" aria-live="polite"><span class="q" id="confirmQ"></span><button class="btn" id="confirmNo">Cancel</button><button class="btn primary" id="confirmYes">Confirm</button></div>
+<div id="toast" hidden role="alert"></div>
+
+<script>
+const ANCHOR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V21M7 10h10M4 14c0 4 3.6 7 8 7s8-3 8-7M4 14l-1.5 1.5M4 14l1.6 1.4M20 14l1.5 1.5M20 14l-1.6 1.4"/></svg>';
+const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
+
+// Shelly device ids on Zorba
+const ID={steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',shore:'a085e3c7fe24',fan:'a085e3c95784',
+  refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c'};
+const MAST={x:59.5,y:47};
+// critical switches get a red confirm button
+const CRITICAL=new Set([ID.shore,ID.fridge,ID.steam,ID.anchor]);
+
+// Items on the plan; x,y are % of the image (bow → right, port ↑). Positions are draggable in Arrange mode.
+const ITEMS=[
+ {key:'steam', type:'chip', id:ID.steam, label:'Steaming + nav', icon:PROP, c:'var(--white)', x:67,y:7, mast:true},
+ {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:52,y:7, mast:true},
+ {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:63,y:55},
+ {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern deck + searchlight',c:'var(--white)',x:11,y:62},
+ {key:'fridge',type:'fridge',id:ID.fridge,label:'Fridge',c:'var(--accent)',x:47,y:68},
+ {key:'heater',type:'relay',id:ID.heater,label:'Water heater',c:'var(--amber)',x:29,y:76},
+ {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:8,y:84},
+ {key:'fan',type:'relay',id:ID.fan,label:'Victron fan',c:'var(--accent)',x:24,y:62},
+ {key:'inverter',type:'temp',id:ID.inverter,label:'Inverter chamber',x:24,y:28},
+ {key:'mainCabin',type:'temp',id:ID.mainCabin,label:'Main cabin',x:52,y:34},
+ {key:'master',type:'temp',id:ID.master,label:'Master bedroom',x:78,y:36},
+ {key:'flood',type:'flood',id:ID.flood,label:'Washing machine',x:68,y:68},
+];
+// fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes
+const NAV=[{x:93.4,y:42.5,c:'var(--port)',from:337.5,span:112.5},{x:93.4,y:52.5,c:'var(--stbd)',from:90,span:112.5},{x:3.6,y:49.8,c:'var(--white)',from:202.5,span:135}];
+const WASH=[{id:ID.deckBow,x:75,y:47,w:30,h:58,col:'255,247,224'},{id:ID.deckStern,x:12,y:50,w:18,h:70,col:'255,247,224'}];
+
+let S={devices:{},bmv:null,history:[]}, layout={}, arranging=false, pending={}, dragging=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dev=id=>S.devices[id]||{};
+const fmt=(v,d=1)=>v==null||isNaN(v)?'—':Number(v).toFixed(d);
+const ago=t=>{if(!t)return '—';const s=Math.round((Date.now()-t)/1000);return s<60?s+' s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
+const stale=t=>!t||Date.now()-t>20*60*1000;
+const posOf=it=>layout[it.key]||{x:it.x,y:it.y};
+const isOn=id=>pending[id]?pending[id].on:!!dev(id).on;
+const ledHtml=(id,c,label)=>{const d=dev(id);return `<button class="led ${isOn(id)?'on':''} ${pending[id]?'pending':''} ${d.online===false?'offline':''}" style="--c:${c}" data-id="${id}" aria-label="${esc(label)}: ${isOn(id)?'on':'off'}" aria-pressed="${isOn(id)}"></button>`};
+
+function renderPlan(){
+  const fx=[];
+  const navOn=isOn(ID.steam);
+  NAV.forEach(n=>{fx.push(`<div class="sector ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;background:conic-gradient(from ${n.from}deg, ${n.c} 0 ${n.span}deg, transparent 0)"></div>`);
+    fx.push(`<span class="o led navdot ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></span>`);});
+  WASH.forEach(w=>fx.push(`<div class="wash ${isOn(w.id)?'on':''}" style="left:${w.x-w.w/2}%;top:${w.y-w.h/2}%;width:${w.w}%;height:${w.h}%;background:radial-gradient(ellipse at center,rgba(${w.col},.5),rgba(${w.col},.16) 45%,transparent 70%)"></div>`));
+  $('#fx').innerHTML=fx.join('');
+
+  $('#items').innerHTML=ITEMS.map(it=>{const p=posOf(it),d=dev(it.id);let inner='';
+    if(it.type==='chip') inner=`<div class="tag"><span>${it.icon}</span><b>${esc(it.label)}</b>${ledHtml(it.id,it.c,it.label)}</div>`;
+    else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
+    else if(it.type==='temp') inner=`<div class="tag ${stale(d.updated)?'stale':''}" title="${esc(d.name)} · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${d.rh!=null?`<span class="v" style="color:var(--muted);font-size:10px">${fmt(d.rh,0)}%</span>`:''}</div>`;
+    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
+    else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]);return `<span class="v ${stale(x.updated)?'stale':''}">${fmt(x.tC)}°</span>`};
+      inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag fridge"><b>Fridge</b><span class="lvl">top</span>${t('refUp')}<span></span><span class="lvl">bottom</span>${t('refDown')}<b>Freezer</b><span class="lvl">top</span>${t('frzUp')}<span></span><span class="lvl">bottom</span>${t('frzDown')}</div>`;}
+    return `<div class="o item" data-key="${it.key}" style="left:${p.x}%;top:${p.y}%">${inner}</div>`;}).join('');
+
+  $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
+}
+
+function renderVictron(){
+  const b=S.bmv, fan=dev(ID.fan), inv=dev(ID.inverter), shore=dev(ID.shore);
+  if(!b){$('#vtiles').innerHTML='<div class="tile">No BMV data yet.</div>';return}
+  const charging=b.current>0.3, idle=Math.abs(b.current)<=0.3;
+  const st=idle?['Idle','var(--muted)']:charging?['Charging','var(--good)']:['Discharging','var(--warn)'];
+  const socCol=b.soc<30?'var(--bad)':b.soc<50?'var(--warn)':'var(--good)';
+  $('#bmvUpd').textContent='BMV via Bluetooth → Shelly · updated '+ago(b.updated);
+  $('#vtiles').innerHTML=`
+   <div class="tile"><div class="lbl">House bank <span class="state" style="color:${st[1]}">${st[0]}</span></div>
+     <div class="big" style="color:${socCol}">${fmt(b.soc,1)}<small>%</small></div><div class="soc"><i style="width:${Math.max(0,Math.min(100,b.soc))}%;background:${socCol}"></i></div>
+     <dl class="kv"><dt>Time to go</dt><dd>${esc(b.timeToGo)}</dd><dt>Consumed</dt><dd>${fmt(b.consumedAh,1)} Ah</dd></dl></div>
+   <div class="tile"><div class="lbl">Battery flow</div><div class="big">${fmt(b.power,0)}<small>W</small></div>
+     <dl class="kv"><dt>Voltage</dt><dd>${fmt(b.voltage,2)} V</dd><dt>Current</dt><dd>${b.current>0?'+':''}${fmt(b.current,2)} A</dd></dl></div>
+   <div class="tile"><div class="lbl">Shore power <span class="state" style="color:${isOn(ID.shore)?'var(--good)':'var(--muted)'}">${isOn(ID.shore)?'To charger':'Off'}</span></div>
+     <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.shore,'var(--good)','Shore power to charger')}<span>Shore power to charger</span></div>
+     <div class="hint">Relay ${shore.online===false?'offline':'online'} · switch temp ${fmt(shore.deviceTemp,0)} °C</div></div>
+   <div class="tile"><div class="lbl">Victron chamber</div><div class="big">${fmt(inv.tC,1)}<small>°C</small></div>
+     <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.fan,'var(--accent)','Victron chamber fan')}<span>Fan ${isOn(ID.fan)?'running':'off'}</span></div>
+     <div class="hint">Sensor ${ago(inv.updated)} · humidity ${fmt(inv.rh,0)} %</div></div>`;
+  const rows=[['State of charge',fmt(b.soc,1),'%'],['Voltage',fmt(b.voltage,2),'V'],['Current',fmt(b.current,2),'A'],['Power',fmt(b.power,0),'W'],['Consumed',fmt(b.consumedAh,1),'Ah'],['Time to go',esc(b.timeToGo),''],['Chamber temperature',fmt(inv.tC,1),'°C']];
+  $('#vtable').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td><td class="n" style="color:var(--faint)">${r[0]==='Chamber temperature'?ago(inv.updated):ago(b.updated)}</td></tr>`).join('');
+
+  const h=(S.history||[]).filter(p=>p.soc!=null);
+  if(h.length<2){$('#spark').innerHTML='<text x="300" y="34" text-anchor="middle" fill="#4d6372" font-size="12">History builds up while the server runs</text>';$('#sparkNote').textContent='';return}
+  const t0=Date.now()-24*3600e3, X=t=>(t-t0)/(24*3600e3)*600, Y=v=>56-v/100*52;
+  const line=h.map((p,i)=>(i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.soc).toFixed(1)).join(' ');
+  const last=h[h.length-1], min=h.reduce((a,p)=>p.soc<a.soc?p:a,h[0]);
+  $('#spark').innerHTML=`<defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2fe07a" stop-opacity=".35"/><stop offset="1" stop-color="#2fe07a" stop-opacity="0"/></linearGradient></defs>
+   ${[25,50,75].map(v=>`<line x1="0" x2="600" y1="${Y(v)}" y2="${Y(v)}" stroke="#22333f" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
+   <path d="${line} L${X(last.t)} 60 L${X(h[0].t)} 60Z" fill="url(#sg)"/><path d="${line}" fill="none" stroke="#2fe07a" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`;
+  $('#sparkNote').textContent=`min ${fmt(min.soc,1)} % at ${new Date(min.t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+}
+
+function renderList(){
+  const all=Object.values(S.devices);
+  const groups={Switches:all.filter(d=>d.kind==='relay'),Temperatures:all.filter(d=>d.kind==='climate'),Alarms:all.filter(d=>d.kind==='flood')};
+  $('#devlist').innerHTML=Object.entries(groups).map(([g,list])=>`<div class="group"><h3>${g}</h3>${list.sort((a,b)=>a.name.localeCompare(b.name)).map(d=>{
+    if(d.kind==='relay') return `<div class="row">${ledHtml(d.id,'var(--accent)',d.name)}<span class="name">${esc(d.name)}</span><span class="val ${isOn(d.id)?'on':''}">${pending[d.id]?'…':isOn(d.id)?'ON':'OFF'}</span></div>`;
+    if(d.kind==='flood') return `<div class="row"><span class="name">${esc(d.name)}<div class="sub">battery ${fmt(d.battery,0)} %</div></span><span class="val" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER':'Dry'}</span></div>`;
+    return `<div class="row"><span class="name">${esc(d.name)}<div class="sub">${ago(d.updated)} · battery ${fmt(d.battery,0)} %</div></span><span class="val on">${fmt(d.tC)} °C<div class="sub">${fmt(d.rh,0)} %</div></span></div>`;}).join('')}</div>`).join('');
+}
+
+function render(){renderPlan();renderVictron();renderList();}
+
+// ---- phone storage (key, layout, history live only in this browser) ----
+const store={get(k,d){try{const v=localStorage.getItem('zorba.'+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('zorba.'+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem('zorba.'+k)}catch(e){}}};
+let CFG=store.get('cfg',null);
+layout=store.get('layout',{});
+
+// ---- Shelly Cloud, called directly from this page (one request at a time, ~1/s limit) ----
+let queue=Promise.resolve();
+function cloud(path,params={}){
+  const run=async()=>{
+    if(!CFG) throw new Error('No Shelly key on this phone');
+    const r=await fetch(CFG.server+path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({...params,auth_key:CFG.key})});
+    const j=await r.json().catch(()=>({isok:false,errors:{http:r.status}}));
+    await new Promise(res=>setTimeout(res,1100));
+    if(!j.isok) throw new Error(j.errors?.wrong_auth_key!==undefined||r.status===401?'Wrong key or server':JSON.stringify(j.errors||r.status));
+    return j.data;
+  };
+  const p=queue.then(run,run); queue=p.catch(()=>{}); return p;
+}
+const utc=s=>s?new Date(s.replace(' ','T')+'Z').getTime():null;
+const BMV_DEVICE='a085e3c89f78';
+let names={}, namesAt=0;
+function shape(st){
+  const devices={};
+  for(const [id,s] of Object.entries(st)){
+    const d={id,name:names[id]?.name||id,online:s.cloud?.connected??s._dev_info?.online??true,updated:utc(s._updated)};
+    if(s['switch:0']){d.kind='relay';d.on=!!s['switch:0'].output;d.deviceTemp=s['switch:0'].temperature?.tC??null;}
+    if(s['temperature:0']){d.kind='climate';d.tC=s['temperature:0'].tC;}
+    if(s['humidity:0']) d.rh=s['humidity:0'].rh;
+    if(s['flood:0']){d.kind='flood';d.flood=!!s['flood:0'].alarm;}
+    if(s['devicepower:0']?.battery) d.battery=s['devicepower:0'].battery.percent??null;
+    devices[id]=d;
+  }
+  const b=st[BMV_DEVICE], num=k=>b?.[k]?.value??null;
+  const bmv=b&&b['number:200']?{soc:num('number:200'),voltage:num('number:201'),current:num('number:202'),power:num('number:203'),consumedAh:num('number:204'),timeToGo:b['text:205']?.value??null,updated:utc(b._updated)}:null;
+  return {devices,bmv};
+}
+let hist=store.get('history',[]);
+function record(b){
+  if(!b) return; const now=Date.now(), m=Math.floor(now/60000)*60000;
+  if(hist.length&&hist[hist.length-1].t===m) return;
+  hist.push({t:m,soc:b.soc,v:b.voltage,a:b.current,w:b.power});
+  hist=hist.filter(p=>p.t>now-24*3600e3); store.set('history',hist);
+}
+
+// ---- live data ----
+let polling=false;
+async function refresh(){
+  if(!CFG||polling||document.hidden) return; polling=true;
+  try{
+    if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();}
+    const data=await cloud('/device/all_status');
+    const {devices,bmv}=shape(data.devices_status||{}); record(bmv);
+    S={ok:true,devices,bmv,history:hist};
+    for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
+    const c=$('#conn');c.className='pill ok';c.querySelector('span').textContent=`Shelly Cloud · ${Object.keys(devices).length} devices`;
+  }catch(e){const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent=navigator.onLine?('Cloud error: '+e.message):'No internet on this phone';}
+  polling=false;
+  if(!dragging) render();
+}
+function start(){ $('#setup').hidden=!!CFG; if(CFG){refresh();} else {$('#conn').querySelector('span').textContent='Not connected';render();} }
+setInterval(refresh,5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()});
+
+// ---- settings ----
+$('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#cfgServer').focus()};
+$('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};
+$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
+$('#setupForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const server=$('#cfgServer').value.trim().replace(/\/+$/,''), key=$('#cfgKey').value.trim()||CFG?.key;
+  if(!/^https:\/\/[a-z0-9-]+\.shelly\.cloud$/i.test(server)){$('#cfgMsg').textContent='The server should look like https://shelly-XX-eu.shelly.cloud';return}
+  if(!key){$('#cfgMsg').textContent='Paste the cloud key.';return}
+  const old=CFG; CFG={server,key}; namesAt=0; $('#cfgMsg').textContent='Checking…';
+  try{await cloud('/device/all_status'); store.set('cfg',CFG); $('#cfgMsg').textContent=''; $('#setup').hidden=true; refresh();}
+  catch(err){CFG=old; $('#cfgMsg').textContent='Could not connect: '+err.message;}
+});
+start();
+
+// ---- switching with confirm ----
+let ask=null;
+document.addEventListener('click',e=>{
+  const led=e.target.closest('.led[data-id]'); if(!led||arranging) return;
+  const id=led.dataset.id, d=dev(id), want=!isOn(id);
+  ask={id,want};
+  $('#confirmQ').textContent=`Switch ${d.name||id} ${want?'ON':'OFF'}?`;
+  $('#confirmYes').className='btn '+(CRITICAL.has(id)&&!want?'danger':'primary');
+  $('#confirm').hidden=false; $('#confirmYes').focus();
+});
+$('#confirmNo').onclick=()=>{$('#confirm').hidden=true;ask=null};
+$('#confirmYes').onclick=async()=>{
+  const a=ask; $('#confirm').hidden=true; ask=null; if(!a) return;
+  pending[a.id]={on:a.want,t:Date.now()}; render();
+  try{await cloud('/device/relay/control',{id:a.id,channel:'0',turn:a.want?'on':'off'}); setTimeout(refresh,1500);
+  }catch(e){delete pending[a.id];toast('Could not switch: '+e.message);render();}
+};
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,5000)}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#confirm').hidden)$('#confirmNo').click()});
+
+// ---- arrange (drag items to their real place aboard) ----
+$('#arrangeBtn').onclick=()=>{arranging=!arranging;$('#arrangeBtn').setAttribute('aria-pressed',arranging);$('#arrangeBtn').textContent=arranging?'Done arranging':'Arrange layout';
+  $('#plan').classList.toggle('arrange',arranging);$('#planHint').textContent=arranging?'Drag items to where they are aboard. Saved automatically.':'Tap a light or switch to change it';};
+$('#plan').addEventListener('pointerdown',e=>{
+  if(!arranging) return; const el=e.target.closest('.item'); if(!el) return;
+  e.preventDefault(); dragging={el,key:el.dataset.key}; el.setPointerCapture(e.pointerId);
+});
+$('#plan').addEventListener('pointermove',e=>{
+  if(!dragging) return; const r=$('#plan').getBoundingClientRect();
+  const x=Math.max(1,Math.min(99,(e.clientX-r.left)/r.width*100)), y=Math.max(2,Math.min(98,(e.clientY-r.top)/r.height*100));
+  dragging.el.style.left=x+'%';dragging.el.style.top=y+'%';layout[dragging.key]={x:+x.toFixed(1),y:+y.toFixed(1)};
+});
+$('#plan').addEventListener('pointerup',async()=>{
+  if(!dragging) return; dragging=null; store.set('layout',layout); render();
+});
+</script>
+</body>
+</html>
