@@ -56,6 +56,7 @@ html,body{overflow-x:hidden}
 #conn{font-size:13px;color:var(--fg)}
 .quick{display:grid;gap:0;font-family:var(--f-display);font-weight:700;font-size:26px;line-height:1.05;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000,0 0 10px #000c;padding-left:2px}
 .ptop .quick span{font-family:var(--f-display);font-size:28px;font-weight:700;letter-spacing:.02em}
+.quick .unit{font-size:15px;font-weight:600;margin-left:2px;opacity:.85}
 #planHint{position:absolute;z-index:6;bottom:10px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--accent);color:var(--accent);padding:6px 10px;border-radius:8px;white-space:nowrap}
 /* boat drawn bow-up: the source photo is bow-right, so it is rotated 90° inside a tall frame */
 .plan{position:relative;width:min(100%, calc(100vh * 0.3765));width:min(100%, calc(100dvh * 0.3765));max-width:100%;aspect-ratio:771/2048;margin:0 auto;touch-action:pan-y;overflow:hidden;
@@ -305,7 +306,7 @@ function renderQuick(){
   const b=S.bmv; $('#quick').hidden=!b; if(!b) return;
   const soc=Math.round(b.soc), a=Math.round(b.current);
   const q=$('#qSoc'); q.textContent=soc+'%'; q.style.color=soc<30?'var(--bad)':soc<50?'var(--warn)':'var(--good)';
-  const f=$('#qFlow'); f.textContent=(a>0?'+':a<0?'−':'')+Math.abs(a); f.style.color=a>0?'var(--good)':a<0?'var(--warn)':'var(--fg)';
+  const f=$('#qFlow'); f.innerHTML=(a>0?'+':a<0?'−':'')+Math.abs(a)+'<small class="unit">A</small>'; f.style.color=a>0?'var(--good)':a<0?'var(--warn)':'var(--fg)';
 }
 function render(){renderQuick();renderPlan();renderVictron();renderList();}
 
