@@ -41,11 +41,15 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 
 /* plan */
 .plan-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:radial-gradient(ellipse at 50% 50%,#13202a 0%,var(--bg) 75%)}
-.plan{position:relative;min-width:860px;aspect-ratio:2048/771;margin:0 auto;touch-action:pan-x pan-y}
-.plan img{position:absolute;inset:0;width:100%;height:100%;filter:brightness(.62) saturate(.85) contrast(1.05);user-select:none;pointer-events:none}
-.plan .bowtag,.plan .sterntag{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;color:var(--faint);writing-mode:vertical-rl}
-.plan .bowtag{right:.6%} .plan .sterntag{left:.4%}
-.plan .sidetag{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint)}
+/* boat drawn bow-up: the source photo is bow-right, so it is rotated 90° inside a tall frame */
+.plan{position:relative;width:100%;max-width:100%;aspect-ratio:771/2048;margin:0 auto;touch-action:pan-y;overflow:hidden}
+.plan img{position:absolute;left:50%;top:50%;width:265.63%;height:37.65%;max-width:none;transform:translate(-50%,-50%) rotate(-90deg);filter:brightness(.62) saturate(.85) contrast(1.05);user-select:none;pointer-events:none}
+.plan .bowtag,.plan .sterntag{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint)}
+.plan .bowtag{top:.4%} .plan .sterntag{bottom:.4%}
+.plan .sidetag{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--f-mono);font-size:10px;letter-spacing:.3em;color:var(--faint);writing-mode:vertical-rl}
+.main{display:grid;gap:20px;min-width:0}
+.main>*{min-width:0}
+@media (min-width:980px){.main{grid-template-columns:440px minmax(0,1fr);align-items:start}.plansec{grid-row:span 2;position:sticky;top:16px}}
 .plan.arrange{outline:2px dashed var(--accent);outline-offset:-6px;touch-action:none}
 .plan.arrange .item{cursor:move;outline:1px dashed var(--accent);outline-offset:3px;border-radius:6px}
 .plan.arrange .item .led{pointer-events:none}
@@ -139,14 +143,15 @@ tr:last-child td{border-bottom:0}
     </form>
   </section>
 
-  <section style="display:grid;gap:10px">
+  <div class="main">
+  <section class="plansec" style="display:grid;gap:10px">
     <div class="sec-head"><h2>Deck plan</h2><span class="hint" id="planHint">Tap a light or switch to change it</span></div>
     <div class="plan-scroll"><div class="plan" id="plan">
-      <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow to the right">
+      <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow up">
       <span class="sterntag">STERN</span><span class="bowtag">BOW</span>
-      <span class="sidetag" style="top:1.5%">PORT</span><span class="sidetag" style="bottom:1.5%">STARBOARD</span>
+      <span class="sidetag" style="left:1%">PORT</span><span class="sidetag" style="right:1%">STARBOARD</span>
       <svg id="leaders" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
-      <div class="o" style="left:59.5%;top:47%;width:10px;height:10px;border-radius:50%;border:2px solid var(--muted);background:var(--bg)" title="Mast"></div>
+      <div class="o" style="left:47%;top:40.5%;width:10px;height:10px;border-radius:50%;border:2px solid var(--muted);background:var(--bg)" title="Mast"></div>
       <div id="fx"></div><div id="items"></div>
     </div></div>
   </section>
@@ -168,6 +173,7 @@ tr:last-child td{border-bottom:0}
     <div class="sec-head"><h2>All Shelly devices</h2><span class="hint">Live from Shelly Cloud</span></div>
     <div class="devgrid" id="devlist"></div>
   </section>
+  </div>
 
   <p class="foot">BMV field names are read from the Shelly script's virtual numbers 200–205 (SOC, voltage, current, power, consumed Ah, time to go). Temperatures update when the Bluetooth sensors report, usually every few minutes.</p>
 </div>
@@ -182,28 +188,28 @@ const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12"
 // Shelly device ids on Zorba
 const ID={steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',shore:'a085e3c7fe24',fan:'a085e3c95784',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c'};
-const MAST={x:59.5,y:47};
+const MAST={x:47,y:40.5};
 // critical switches get a red confirm button
 const CRITICAL=new Set([ID.shore,ID.fridge,ID.steam,ID.anchor]);
 
-// Items on the plan; x,y are % of the image (bow → right, port ↑). Positions are draggable in Arrange mode.
+// Items on the plan; x,y are % of the plan (bow ↑, port ←). Positions are draggable in Arrange mode.
 const ITEMS=[
- {key:'steam', type:'chip', id:ID.steam, label:'Steaming + nav', icon:PROP, c:'var(--white)', x:67,y:7, mast:true},
- {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:52,y:7, mast:true},
- {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:63,y:55},
- {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern deck + searchlight',c:'var(--white)',x:11,y:62},
- {key:'fridge',type:'fridge',id:ID.fridge,label:'Fridge',c:'var(--accent)',x:47,y:68},
- {key:'heater',type:'relay',id:ID.heater,label:'Water heater',c:'var(--amber)',x:29,y:76},
- {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:8,y:84},
- {key:'fan',type:'relay',id:ID.fan,label:'Victron fan',c:'var(--accent)',x:24,y:62},
- {key:'inverter',type:'temp',id:ID.inverter,label:'Inverter chamber',x:24,y:28},
- {key:'mainCabin',type:'temp',id:ID.mainCabin,label:'Main cabin',x:52,y:34},
- {key:'master',type:'temp',id:ID.master,label:'Master bedroom',x:78,y:36},
- {key:'flood',type:'flood',id:ID.flood,label:'Washing machine',x:68,y:68},
+ {key:'steam', type:'chip', id:ID.steam, label:'Steaming', icon:PROP, c:'var(--white)', x:79,y:33, mast:true},
+ {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true},
+ {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:50,y:27},
+ {key:'master',type:'temp',id:ID.master,label:'Master bedroom',x:40,y:18},
+ {key:'mainCabin',type:'temp',id:ID.mainCabin,label:'Main cabin',x:36,y:48},
+ {key:'fridge',type:'fridge',id:ID.fridge,label:'Fridge',c:'var(--accent)',x:68,y:55},
+ {key:'flood',type:'flood',id:ID.flood,label:'Washing machine',x:31,y:60},
+ {key:'heater',type:'relay',id:ID.heater,label:'Water heater',c:'var(--amber)',x:28,y:72},
+ {key:'fan',type:'relay',id:ID.fan,label:'Victron fan',c:'var(--accent)',x:70,y:70},
+ {key:'inverter',type:'temp',id:ID.inverter,label:'Inverter',x:70,y:77},
+ {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:27,y:87},
+ {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:71,y:87},
 ];
-// fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes
-const NAV=[{x:93.4,y:42.5,c:'var(--port)',from:337.5,span:112.5},{x:93.4,y:52.5,c:'var(--stbd)',from:90,span:112.5},{x:3.6,y:49.8,c:'var(--white)',from:202.5,span:135}];
-const WASH=[{id:ID.deckBow,x:75,y:47,w:30,h:58,col:'255,247,224'},{id:ID.deckStern,x:12,y:50,w:18,h:70,col:'255,247,224'}];
+// fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes; 0° = ahead (up)
+const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
+const WASH=[{id:ID.deckBow,x:47,y:25,w:58,h:30,col:'255,247,224'},{id:ID.deckStern,x:50,y:88,w:70,h:18,col:'255,247,224'}];
 
 let S={devices:{},bmv:null,history:[]}, layout={}, arranging=false, pending={}, dragging=null;
 const $=s=>document.querySelector(s);
@@ -284,7 +290,7 @@ function render(){renderPlan();renderVictron();renderList();}
 const store={get(k,d){try{const v=localStorage.getItem('zorba.'+k);return v?JSON.parse(v):d}catch(e){return d}},
   set(k,v){try{localStorage.setItem('zorba.'+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem('zorba.'+k)}catch(e){}}};
 let CFG=store.get('cfg',null);
-layout=store.get('layout',{});
+layout=store.get('layout-bowup',{});
 
 // ---- Shelly Cloud, called directly from this page (one request at a time, ~1/s limit) ----
 let queue=Promise.resolve();
@@ -392,7 +398,7 @@ $('#plan').addEventListener('pointermove',e=>{
   dragging.el.style.left=x+'%';dragging.el.style.top=y+'%';layout[dragging.key]={x:+x.toFixed(1),y:+y.toFixed(1)};
 });
 $('#plan').addEventListener('pointerup',async()=>{
-  if(!dragging) return; dragging=null; store.set('layout',layout); render();
+  if(!dragging) return; dragging=null; store.set('layout-bowup',layout); render();
 });
 </script>
 </body>
