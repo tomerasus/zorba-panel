@@ -78,9 +78,6 @@ h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1
 .fridge b{grid-column:1}
 .fridge .lvl{font-family:var(--f-mono);font-size:9px;color:var(--faint)}
 
-/* confirm popover */
-#confirm{position:fixed;z-index:20;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 40px #000a;max-width:calc(100vw - 32px);flex-wrap:wrap}
-#confirm .q{font-weight:500}
 .btn{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 14px;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#06222e;font-weight:600}
 .btn.danger{background:var(--bad);border-color:var(--bad);color:#2a0606;font-weight:600}
@@ -178,7 +175,6 @@ tr:last-child td{border-bottom:0}
   <p class="foot">BMV field names are read from the Shelly script's virtual numbers 200–205 (SOC, voltage, current, power, consumed Ah, time to go). Temperatures update when the Bluetooth sensors report, usually every few minutes.</p>
 </div>
 
-<div id="confirm" hidden role="dialog" aria-live="polite"><span class="q" id="confirmQ"></span><button class="btn" id="confirmNo">Cancel</button><button class="btn primary" id="confirmYes">Confirm</button></div>
 <div id="toast" hidden role="alert"></div>
 
 <script>
@@ -189,8 +185,6 @@ const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12"
 const ID={steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',shore:'a085e3c7fe24',fan:'a085e3c95784',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c'};
 const MAST={x:47,y:40.5};
-// critical switches get a red confirm button
-const CRITICAL=new Set([ID.shore,ID.fridge,ID.steam,ID.anchor]);
 
 // Items on the plan; x,y are % of the plan (bow ↑, port ←). Positions are draggable in Arrange mode.
 const ITEMS=[
@@ -365,25 +359,16 @@ $('#setupForm').addEventListener('submit',async e=>{
 });
 start();
 
-// ---- switching with confirm ----
-let ask=null;
-document.addEventListener('click',e=>{
+// ---- switching: one tap switches (ignored while that switch is still changing) ----
+document.addEventListener('click',async e=>{
   const led=e.target.closest('.led[data-id]'); if(!led||arranging) return;
-  const id=led.dataset.id, d=dev(id), want=!isOn(id);
-  ask={id,want};
-  $('#confirmQ').textContent=`Switch ${d.name||id} ${want?'ON':'OFF'}?`;
-  $('#confirmYes').className='btn '+(CRITICAL.has(id)&&!want?'danger':'primary');
-  $('#confirm').hidden=false; $('#confirmYes').focus();
+  const id=led.dataset.id; if(pending[id]) return;
+  const want=!isOn(id);
+  pending[id]={on:want,t:Date.now()}; render();
+  try{await cloud('/device/relay/control',{id,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500);
+  }catch(err){delete pending[id];toast('Could not switch: '+err.message);render();}
 });
-$('#confirmNo').onclick=()=>{$('#confirm').hidden=true;ask=null};
-$('#confirmYes').onclick=async()=>{
-  const a=ask; $('#confirm').hidden=true; ask=null; if(!a) return;
-  pending[a.id]={on:a.want,t:Date.now()}; render();
-  try{await cloud('/device/relay/control',{id:a.id,channel:'0',turn:a.want?'on':'off'}); setTimeout(refresh,1500);
-  }catch(e){delete pending[a.id];toast('Could not switch: '+e.message);render();}
-};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,5000)}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#confirm').hidden)$('#confirmNo').click()});
 
 // ---- arrange (drag items to their real place aboard) ----
 $('#arrangeBtn').onclick=()=>{arranging=!arranging;$('#arrangeBtn').setAttribute('aria-pressed',arranging);$('#arrangeBtn').textContent=arranging?'Done arranging':'Arrange layout';
