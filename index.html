@@ -492,7 +492,8 @@ function shape(st){
   const sv=b?.['text:210']?.value;
   const segs=sv?sv.split(';'):[], n=x=>x===''||x==null?null:Number(x);
   // first 4 segments = solar chargers; a segment starting with "A" = alternator DC-DC (Orion XS)
-  const solar=segs.filter(p=>p&&p[0]!=='A').slice(0,4).map(p=>{const f=p.split(',');
+  // keep empty slots in place (a charger not heard yet after a restart) so no block shows its neighbour's data
+  const solar=segs.filter(p=>p[0]!=='A').slice(0,4).map(p=>{const f=p.split(',');
     if(f.length<6) return null; const hist=f[3]?f[3].split('|').map(n):[];
     return {pv:n(f[0]),amps:n(f[1]),today:n(f[2]),hist,yest:hist.length?hist[0]:null,state:n(f[4]),error:n(f[5]),rssi:n(f[6])}});
   // "A<type>,state,error,inV,outV,outA,inA"
