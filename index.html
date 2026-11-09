@@ -142,6 +142,8 @@ button.tag.solar{font:inherit;color:var(--fg);cursor:pointer;text-align:left}
 .tag.solar .sx{font-family:var(--f-mono);font-size:10px;display:grid;width:100%;white-space:normal;line-height:1.2;border-top:1px solid var(--line);padding-top:3px;margin-top:3px}
 .tag.solar .sx+.sx{border-top:0;margin-top:0;padding-top:1px}
 .quick .sun{font-size:16px;margin:0 3px 0 0}
+.quick .alticon{width:15px;height:15px;margin:0 4px 0 1px;vertical-align:-1px}
+.quick .altin{font-size:13px;margin-left:6px;opacity:.75}
 .fridge{display:grid;grid-template-columns:auto auto auto;gap:1px 8px;align-items:baseline;text-align:left}
 .fridge b{grid-column:1}
 .fridge .lvl{font-family:var(--f-mono);font-size:9px;color:var(--faint)}
@@ -206,7 +208,7 @@ tr:last-child td{border-bottom:0}
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
-      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span></div></div>
+      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qAlt" title="Alternator DC-DC (Orion XS): output A into the house bank, input A from the alternator side" hidden></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span></div></div>
       <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
@@ -422,6 +424,9 @@ function renderList(){
     return `<div class="row" data-rh="${d.id}" style="cursor:pointer" title="Tap for humidity"><span class="name">${esc(d.name.replace(/^master\s+(.)/i,(m,c)=>c.toUpperCase()))}<div class="sub">${ago(d.updated)} · battery ${fmt(d.battery,0)} %</div></span><span class="val on">${fmt(d.tC)} °C${showRH.has(d.id)&&d.rh!=null?`<div class="sub" style="color:var(--accent)">${fmt(d.rh,0)} % RH</div>`:''}</span></div>`;}).join('')}</div>`).join('');
 }
 
+// alternator symbol: a circle with a sine wave
+const ALT_ICON='<svg class="alticon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9.5"/><path d="M6.5 12c1.4-3.2 2.8-3.2 4.2 0s2.8 3.2 4.2 0 2.1-2.4 2.6-1.2" stroke-linecap="round"/></svg>';
+const ORION_STATE={0:'Off',1:'Low power',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',9:'On',11:'Power supply',245:'Starting up',252:'External control'};
 const BANK_AH=1120; // house bank capacity; the corner shows what is left: 1120 − consumed
 // top-left quick view: house bank %, battery current, Ah left — whole numbers
 function renderQuick(){
@@ -430,6 +435,12 @@ function renderQuick(){
   const q=$('#qSoc'); q.textContent=soc+'%'; q.style.color=soc<30?'var(--bad)':soc<50?'var(--warn)':'var(--good)';
   const sol=(S.solar||[]).filter(m=>m&&m.amps!=null), qs=$('#qSol'); qs.hidden=!sol.length;
   if(sol.length){const t=sol.reduce((a,m)=>a+m.amps,0); qs.innerHTML='<small class="unit sun">☀</small>'+Math.round(t)+'<small class="unit">A</small>'; qs.style.color=t>=0.5?'var(--amber)':'var(--fg)';}
+  // alternator: output A big, input A small; 0 when the charger is off
+  const al=S.alt, qal=$('#qAlt'); qal.hidden=!al;
+  if(al){const on=al.state!==0, out=on&&al.outA!=null?Math.round(al.outA):0, inp=on&&al.inA!=null?Math.round(al.inA):0;
+    qal.innerHTML=ALT_ICON+out+'<small class="unit">A</small><small class="unit altin">in '+inp+'A</small>';
+    qal.style.color=al.error?'var(--bad)':out>0?'var(--accent)':'var(--fg)';
+    qal.title=`Alternator DC-DC: ${ORION_STATE[al.state]||('state '+al.state)}${al.error?' · fault '+al.error:''} · out ${fmt(al.outV,2)} V ${fmt(al.outA,1)} A · in ${fmt(al.inV,2)} V ${al.inA!=null?fmt(al.inA,1)+' A':''}`;}
   const solDay=(S.solar||[]).filter(m=>m&&m.today!=null), qd=$('#qSolDay'); qd.hidden=!solDay.length;
   if(solDay.length){qd.innerHTML='<small class="unit sun">Σ</small>'+toAh(solDay.reduce((a,m)=>a+m.today,0))+'<small class="unit">Ah</small>'; qd.style.color='var(--amber)';}
   const ah=$('#qAh'); ah.hidden=b.consumedAh==null; if(b.consumedAh!=null){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); ah.innerHTML=left+'<small class="unit">Ah</small>'; ah.style.color=left<300?'var(--bad)':'var(--fg)';}
@@ -479,11 +490,16 @@ function shape(st){
   // 4 solar chargers packed by the Shelly "Mppt" script into text:210:
   // "pvW,battA,todayKWh,yesterdayKWh,state,error,rssi;" in SOLAR order
   const sv=b?.['text:210']?.value;
-  const solar=sv?sv.split(';').map(p=>{const f=p.split(','),n=x=>x===''||x==null?null:Number(x);
-    if(f.length<7) return null; const hist=f[3]?f[3].split('|').map(n):[];
-    return {pv:n(f[0]),amps:n(f[1]),today:n(f[2]),hist,yest:hist.length?hist[0]:null,state:n(f[4]),error:n(f[5]),rssi:n(f[6])}}):[];
+  const segs=sv?sv.split(';'):[], n=x=>x===''||x==null?null:Number(x);
+  // first 4 segments = solar chargers; a segment starting with "A" = alternator DC-DC (Orion XS)
+  const solar=segs.filter(p=>p&&p[0]!=='A').slice(0,4).map(p=>{const f=p.split(',');
+    if(f.length<6) return null; const hist=f[3]?f[3].split('|').map(n):[];
+    return {pv:n(f[0]),amps:n(f[1]),today:n(f[2]),hist,yest:hist.length?hist[0]:null,state:n(f[4]),error:n(f[5]),rssi:n(f[6])}});
+  // "A<type>,state,error,inV,outV,outA,inA"
+  const as=segs.find(p=>p&&p[0]==='A'), af=as?as.slice(1).split(','):null;
+  const alt=af?{type:n(af[0]),state:n(af[1]),error:n(af[2]),inV:n(af[3]),outV:n(af[4]),outA:n(af[5]),inA:n(af[6])}:null;
   if(bmv) bmv.solarUpdated=utc(b._updated);
-  return {devices,bmv,solar};
+  return {devices,bmv,solar,alt};
 }
 let hist=store.get('history',[]);
 function record(b){
@@ -507,6 +523,7 @@ function currentAlerts(){
   t(ID.refDown,ALERT.fridgeMax,'Fridge'); t(ID.frzDown,ALERT.freezerMax,'Freezer');
   const inv=d(ID.inverter); if(inv.tC!=null&&!stale(inv.updated)&&inv.tC>ALERT.chamberMax) out.push({id:'inv',lvl:'warn',text:`Victron chamber hot: ${fmt(inv.tC)} °C`});
   if(boatAge()<=STALE_MS) SOLAR.forEach(s=>{const m=(S.solar||[])[s.idx]; if(m&&m.error) out.push({id:'sol-'+s.idx+'-'+m.error,lvl:'warn',text:`Solar ${s.label}: ${MPPT_ERR[m.error]||('error '+m.error)}`});});
+  if(boatAge()<=STALE_MS&&S.alt&&S.alt.error) out.push({id:'alt-'+S.alt.error,lvl:'warn',text:`Alternator charger fault (${MPPT_ERR[S.alt.error]||('error '+S.alt.error)})`});
   if(lastOk&&S.bmv&&boatAge()>ALERT.boatSilentMin*60e3&&boatAge()!==Infinity) out.push({id:'silent',lvl:'warn',text:`Boat has not reported for ${agoShort(boatAge())}`});
   return out;
 }
@@ -590,8 +607,8 @@ async function refresh(){
   try{
     if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();}
     const data=await cloud('/device/all_status');
-    const {devices,bmv,solar}=shape(data.devices_status||{}); record(bmv);
-    S={ok:true,devices,bmv,solar,history:hist};
+    const {devices,bmv,solar,alt}=shape(data.devices_status||{}); record(bmv);
+    S={ok:true,devices,bmv,solar,alt,history:hist};
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
     lastOk=Date.now(); lastErr='';
   }catch(e){ lastErr=navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone'; }
