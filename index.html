@@ -74,6 +74,9 @@ html,body{overflow-x:hidden}
 #alerts.warn{background:#2a1f0a;border-color:var(--warn);box-shadow:0 10px 40px #000c,0 0 24px color-mix(in srgb,var(--warn) 40%,transparent)}
 #alerts.ringing{animation:alertpulse 1.2s ease-in-out infinite}
 @keyframes alertpulse{50%{box-shadow:0 10px 40px #000c,0 0 40px var(--bad)}}
+#alerts{touch-action:none;cursor:grab;user-select:none}
+#alerts.moving{cursor:grabbing;opacity:.92}
+#alerts .grip{margin-left:auto;font-size:18px;color:var(--muted);letter-spacing:0}
 #alerts .ah{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:15px}
 #alerts ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
 #alerts li{display:flex;gap:8px;align-items:baseline;font-size:14px;line-height:1.3}
@@ -512,12 +515,40 @@ function renderAlerts(){
   for(const k of [...acked]) if(!ids.has(k)) acked.delete(k);       // cleared → can ring again next time
   const unacked=list.filter(a=>!acked.has(a.id));
   box.hidden=!list.length; if(!list.length){box.classList.remove('ringing');return;}
-  box.className=list.some(a=>a.lvl==='bad')?'':'warn'; box.classList.toggle('ringing',unacked.length>0);
-  box.innerHTML=`<div class="ah">🔔 Alert</div><ul>${list.map(a=>`<li class="${a.lvl}"><i></i>${esc(a.text)}</li>`).join('')}</ul>
+  const moving=box.classList.contains('moving');
+  box.className=list.some(a=>a.lvl==='bad')?'':'warn'; box.classList.toggle('ringing',unacked.length>0); if(moving) box.classList.add('moving');
+  placeAlerts();
+  box.innerHTML=`<div class="ah">🔔 Alert<span class="grip" title="Drag to move">⠿</span></div><ul>${list.map(a=>`<li class="${a.lvl}"><i></i>${esc(a.text)}</li>`).join('')}</ul>
     <div class="abtns"><span class="snote">${unacked.length?(audioReady?'Bell rings every 30 s':'Tap the screen once to allow the bell sound'):'Silenced'}</span>${unacked.length?'<button class="btn primary" id="silenceBtn">Silence</button>':''}</div>`;
   const sb=$('#silenceBtn'); if(sb) sb.onclick=()=>{list.forEach(a=>acked.add(a.id)); renderAlerts();};
   if(unacked.length&&Date.now()-lastRing>30e3){lastRing=Date.now(); ringBell();}
 }
+// ---- the alert card can be dragged anywhere over the boat; its spot is remembered on this phone ----
+let alertPos=store.get('alertPos',null);   // {x,y} = top-left corner as a fraction of the panel
+function placeAlerts(){
+  const box=$('#alerts'), panel=$('.plansec'); if(!alertPos||!panel) return;
+  const pw=panel.clientWidth, ph=panel.clientHeight, bw=box.offsetWidth||300, bh=box.offsetHeight||120;
+  const x=Math.max(0,Math.min(pw-bw,alertPos.x*pw)), y=Math.max(0,Math.min(ph-bh,alertPos.y*ph));
+  box.style.left=x+'px'; box.style.top=y+'px'; box.style.transform='none';
+}
+(function(){
+  const box=$('#alerts'); let drag=null;
+  box.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')) return;              // Silence stays a normal button
+    const r=box.getBoundingClientRect(), p=$('.plansec').getBoundingClientRect();
+    drag={dx:e.clientX-r.left, dy:e.clientY-r.top, p}; box.setPointerCapture(e.pointerId); box.classList.add('moving'); e.preventDefault();
+  });
+  box.addEventListener('pointermove',e=>{
+    if(!drag) return; const p=drag.p;
+    const x=Math.max(0,Math.min(p.width-box.offsetWidth, e.clientX-p.left-drag.dx));
+    const y=Math.max(0,Math.min(p.height-box.offsetHeight, e.clientY-p.top-drag.dy));
+    box.style.left=x+'px'; box.style.top=y+'px'; box.style.transform='none';
+    alertPos={x:x/p.width, y:y/p.height};
+  });
+  const end=()=>{ if(!drag) return; drag=null; box.classList.remove('moving'); store.set('alertPos',alertPos); };
+  box.addEventListener('pointerup',end); box.addEventListener('pointercancel',end);
+  window.addEventListener('resize',()=>{ if(!box.hidden) placeAlerts(); });
+})();
 // ship's bell, synthesised (no sound file): two double-strikes with bell-like overtones
 function ringBell(){
   try{navigator.vibrate&&navigator.vibrate([300,150,300,400,300,150,300]);}catch(e){}
