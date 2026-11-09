@@ -175,7 +175,7 @@ tr:last-child td{border-bottom:0}
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
-      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qSol" title="Total solar charging current, all 4 chargers" hidden></span></div></div>
+      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span></div></div>
       <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill" id="settingsBtn" aria-label="Settings">⚙</button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
@@ -347,6 +347,8 @@ function renderQuick(){
   const q=$('#qSoc'); q.textContent=soc+'%'; q.style.color=soc<30?'var(--bad)':soc<50?'var(--warn)':'var(--good)';
   const sol=(S.solar||[]).filter(m=>m&&m.amps!=null), qs=$('#qSol'); qs.hidden=!sol.length;
   if(sol.length){const t=sol.reduce((a,m)=>a+m.amps,0); qs.innerHTML='<small class="unit sun">☀</small>'+Math.round(t)+'<small class="unit">A</small>'; qs.style.color=t>=0.5?'var(--amber)':'var(--fg)';}
+  const solDay=(S.solar||[]).filter(m=>m&&m.today!=null), qd=$('#qSolDay'); qd.hidden=!solDay.length;
+  if(solDay.length){qd.innerHTML='<small class="unit sun">Σ</small>'+toAh(solDay.reduce((a,m)=>a+m.today,0))+'<small class="unit">Ah</small>'; qd.style.color='var(--amber)';}
   const ah=$('#qAh'); ah.hidden=b.consumedAh==null; if(b.consumedAh!=null){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); ah.innerHTML=left+'<small class="unit">Ah</small>'; ah.style.color=left<300?'var(--bad)':'var(--fg)';}
   const f=$('#qFlow'); f.innerHTML=(a>0?'+':a<0?'−':'')+Math.abs(a)+'<small class="unit">A</small>'; f.style.color=a>0?'var(--good)':a<0?'var(--warn)':'var(--fg)';
 }
