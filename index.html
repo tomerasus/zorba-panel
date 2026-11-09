@@ -516,7 +516,8 @@ function record(b){
 
 // ---- alerts: a card over the boat + ship's bell, while the app is open ----
 // thresholds (change here)
-const ALERT={ahLeft:300, fridgeMax:8, freezerMax:-5, chamberMax:50, engineMax:60, boatSilentMin:5};
+const ALERT={ahLeft:300, fridgeMax:8, freezerMax:-5, chamberMax:50, engineMax:60, boatSilentMin:5,
+  sensorSilentMin:30};  // a temperature sensor that has not reported for this long (set from measured report gaps)
 const acked=new Set();      // alerts silenced by the user; cleared when the condition goes away
 let lastRing=0, audio=null, audioReady=false;
 function currentAlerts(){
@@ -530,6 +531,14 @@ function currentAlerts(){
   const inv=d(ID.inverter); if(inv.tC!=null&&!stale(inv.updated)&&inv.tC>ALERT.chamberMax) out.push({id:'inv',lvl:'warn',text:`Victron chamber hot: ${fmt(inv.tC)} °C`});
   if(boatAge()<=STALE_MS) SOLAR.forEach(s=>{const m=(S.solar||[])[s.idx]; if(m&&m.error) out.push({id:'sol-'+s.idx+'-'+m.error,lvl:'warn',text:`Solar ${s.label}: ${MPPT_ERR[m.error]||('error '+m.error)}`});});
   if(boatAge()<=STALE_MS&&S.alt&&S.alt.error) out.push({id:'alt-'+S.alt.error,lvl:'warn',text:`Alternator charger fault (${MPPT_ERR[S.alt.error]||('error '+S.alt.error)})`});
+  // sensors that stop reporting (only while the boat itself is online; otherwise the boat alert covers it)
+  if(lastOk&&Date.now()-lastOk<=STALE_MS&&boatAge()<=STALE_MS){
+    for(const x of Object.values(S.devices)){
+      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>ALERT.sensorSilentMin*60e3)
+        out.push({id:'silent-'+x.id,lvl:'warn',text:`No reading from ${x.name} for ${agoShort(Date.now()-x.updated)}`});
+      if(x.kind==='flood'&&x.online===false) out.push({id:'off-'+x.id,lvl:'warn',text:`${x.name} sensor is offline`});
+    }
+  }
   if(lastOk&&S.bmv&&boatAge()>ALERT.boatSilentMin*60e3&&boatAge()!==Infinity) out.push({id:'silent',lvl:'warn',text:`Boat has not reported for ${agoShort(boatAge())}`});
   return out;
 }
