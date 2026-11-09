@@ -256,6 +256,7 @@ const ago=t=>{if(!t)return '—';const s=Math.round((Date.now()-t)/1000);return 
 const stale=t=>!t||Date.now()-t>20*60*1000;
 const posOf=it=>layout[it.key]||{x:it.x,y:it.y};
 const showRH=new Set(), showSol=new Set();
+const dayName=back=>new Date(Date.now()-back*864e5).toLocaleDateString('en-GB',{weekday:'short'});
 // Victron charger states and the most common error codes (VE.Direct protocol)
 const MPPT_STATE={0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',9:'Inverting',11:'Power supply',245:'Starting up',247:'Repeated absorption',252:'External control'};
 const MPPT_ERR={1:'Battery temp too high',2:'Battery voltage too high',3:'Temp sensor fault',17:'Charger too hot',18:'Charger over-current',20:'Bulk time limit',21:'Current sensor issue',26:'Terminals overheated',33:'PV voltage too high',34:'PV current too high',38:'PV input shut down',116:'Calibration lost',117:'Firmware mismatch',119:'Settings lost'};
@@ -285,9 +286,8 @@ function renderPlan(){
   const solarTag=s=>{const m=(S.solar||[])[s.idx], k=v=>v==null?'—':fmt(v,2), open=showSol.has(s.idx);
     const more=open&&m?`<span class="sx"><i>state</i>${MPPT_STATE[m.state]||('State '+m.state)}</span>
       <span class="sx"><i>solar</i>${m.pv!=null?m.pv+' W':'—'}</span>
-      <span class="sx" style="${m.error?'color:var(--bad)':''}"><i>error</i>${m.error?(MPPT_ERR[m.error]||('Error '+m.error)):'None'}</span>
-      <span class="sx"><i>signal</i>${m.rssi!=null?m.rssi+' dBm':'—'}</span>`:'';
-    return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m?k(m.today):'—'}</span><span class="sd"><i>yday</i>${m?k(m.yest):'—'}</span>${more}</button>`};
+      <span class="sx"><i>last 5 days · kWh</i></span>${[0,1,2,3,4].map(i=>`<span class="sd"><i>${dayName(i+1)}</i>${m.hist[i]!=null?k(m.hist[i]):'—'}</span>`).join('')}`:'';
+    return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="${m&&m.error?esc(MPPT_ERR[m.error]||('Charger error '+m.error))+' · ':''}Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m?k(m.today):'—'}</span><span class="sd"><i>yday</i>${m?k(m.yest):'—'}</span>${more}</button>`};
   $('#solarL').innerHTML=SOLAR.filter(s=>s.side==='L').map(solarTag).join('');
   $('#solarR').innerHTML=SOLAR.filter(s=>s.side==='R').map(solarTag).join('');
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
@@ -387,7 +387,8 @@ function shape(st){
   // "pvW,battA,todayKWh,yesterdayKWh,state,error,rssi;" in SOLAR order
   const sv=b?.['text:210']?.value;
   const solar=sv?sv.split(';').map(p=>{const f=p.split(','),n=x=>x===''||x==null?null:Number(x);
-    return f.length<7?null:{pv:n(f[0]),amps:n(f[1]),today:n(f[2]),yest:n(f[3]),state:n(f[4]),error:n(f[5]),rssi:n(f[6])}}):[];
+    if(f.length<7) return null; const hist=f[3]?f[3].split('|').map(n):[];
+    return {pv:n(f[0]),amps:n(f[1]),today:n(f[2]),hist,yest:hist.length?hist[0]:null,state:n(f[4]),error:n(f[5]),rssi:n(f[6])}}):[];
   if(bmv) bmv.solarUpdated=utc(b._updated);
   return {devices,bmv,solar};
 }
