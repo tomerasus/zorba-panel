@@ -1,7 +1,7 @@
 // ZORBA app helper: keeps a copy of the page and images so the app opens instantly
 // and still shows the boat without internet. The page itself is always fetched fresh
 // when online, so new versions arrive on the next open. Shelly Cloud calls are never cached.
-const CACHE = 'zorba-v1';
+const CACHE = 'zorba-v2'; // bump when images/icons change so phones refresh them
 const SHELL = ['./', './index.html', './zorbaabove.jpeg', './icon-192.png', './icon-512.png', './manifest.webmanifest'];
 
 self.addEventListener('install', e => {
