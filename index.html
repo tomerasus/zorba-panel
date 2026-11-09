@@ -198,14 +198,7 @@ tr:last-child td{border-bottom:0}
       <label style="display:grid;gap:4px"><span class="hint">Authorization cloud key</span><input id="cfgKey" class="btn" style="text-align:left;cursor:text" type="password" autocomplete="off" required></label>
       <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="submit">Connect</button><button class="btn" type="button" id="cfgForget">Forget key on this phone</button><button class="btn" type="button" id="cfgClose">Close</button></div>
       <span class="hint" id="cfgMsg"></span>
-    </form>
-    <div style="display:grid;gap:8px;max-width:520px;border-top:1px solid var(--line);padding-top:12px">
-      <h2>Device positions</h2>
-      <p style="margin:0;color:var(--muted)">Copy your arranged layout and send it to shilla to make it the default on every phone.</p>
-      <textarea id="layoutOut" class="btn" readonly rows="3" style="text-align:left;font-family:var(--f-mono);font-size:11px;cursor:text;resize:vertical"></textarea>
-      <div><button class="btn" type="button" id="layoutCopy">Copy layout</button> <span class="hint" id="layoutMsg"></span></div>
-    </div>
-  </section>
+    </form>  </section>
 
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
@@ -581,12 +574,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()
 
 // ---- settings ----
 $('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
-$('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};
-$('#settingsBtn').addEventListener('click',()=>{$('#layoutOut').value=JSON.stringify(layout);$('#layoutMsg').textContent=Object.keys(layout).length?'':'No items moved on this phone yet.';});
-$('#layoutCopy').onclick=async()=>{const t=$('#layoutOut');t.value=JSON.stringify(layout);
-  try{await navigator.clipboard.writeText(t.value);$('#layoutMsg').textContent='Copied. Paste it in a message to shilla.';}
-  catch(e){t.focus();t.select();$('#layoutMsg').textContent='Selected: long-press it and choose Copy.';}};
-$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
+$('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
 $('#setupForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const server=$('#cfgServer').value.trim().replace(/\/+$/,''), key=$('#cfgKey').value.trim()||CFG?.key;
