@@ -308,7 +308,7 @@ function renderQuick(){
   const b=S.bmv; $('#quick').hidden=!b; if(!b) return;
   const soc=Math.round(b.soc), a=Math.round(b.current);
   const q=$('#qSoc'); q.textContent=soc+'%'; q.style.color=soc<30?'var(--bad)':soc<50?'var(--warn)':'var(--good)';
-  const ah=$('#qAh'); ah.hidden=b.consumedAh==null; if(b.consumedAh!=null) ah.innerHTML=Math.round(BANK_AH-Math.abs(b.consumedAh))+'<small class="unit">Ah</small>';
+  const ah=$('#qAh'); ah.hidden=b.consumedAh==null; if(b.consumedAh!=null){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); ah.innerHTML=left+'<small class="unit">Ah</small>'; ah.style.color=left<300?'var(--bad)':'var(--fg)';}
   const f=$('#qFlow'); f.innerHTML=(a>0?'+':a<0?'−':'')+Math.abs(a)+'<small class="unit">A</small>'; f.style.color=a>0?'var(--good)':a<0?'var(--warn)':'var(--fg)';
 }
 function render(){renderQuick();renderPlan();renderVictron();renderList();}
