@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Zorba Boat Panel</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1218">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZORBA">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -449,6 +457,8 @@ document.addEventListener('click',async e=>{
   try{await cloud('/device/relay/control',{id,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500);
   }catch(err){delete pending[id];toast('Could not switch: '+err.message);render();}
 });
+// installable app: register the offline helper (ignored where unsupported)
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 // tap a solar charger to show / hide its details
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-sol]'); if(!t) return;
