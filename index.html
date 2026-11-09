@@ -299,7 +299,10 @@ const showRH=new Set(), showSol=new Set();
 // solar day totals arrive in kWh; Ah into the battery = Wh ÷ charging voltage
 const CHARGE_V=13.5;
 const toAh=kwh=>Math.round(kwh*1000/CHARGE_V);
-const dayName=back=>new Date(Date.now()-back*864e5).toLocaleDateString('en-GB',{weekday:'short'});
+// The chargers close their solar day a few hours after dark (seen ~22:00), so the newest saved
+// day is today's daylight if it is already evening, otherwise yesterday's.
+const dayName=back=>{const n=new Date(); const shift=n.getHours()>=20?back-1:back;
+  return new Date(n.getTime()-shift*864e5).toLocaleDateString('en-GB',{weekday:'short'});};
 // Victron charger states and the most common error codes (VE.Direct protocol)
 const MPPT_STATE={0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',9:'Inverting',11:'Power supply',245:'Starting up',247:'Repeated absorption',252:'External control'};
 const MPPT_ERR={1:'Battery temp too high',2:'Battery voltage too high',3:'Temp sensor fault',17:'Charger too hot',18:'Charger over-current',20:'Bulk time limit',21:'Current sensor issue',26:'Terminals overheated',33:'PV voltage too high',34:'PV current too high',38:'PV input shut down',116:'Calibration lost',117:'Firmware mismatch',119:'Settings lost'};
