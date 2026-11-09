@@ -457,9 +457,9 @@ document.addEventListener('click',async e=>{
   try{await cloud('/device/relay/control',{id,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500);
   }catch(err){delete pending[id];toast('Could not switch: '+err.message);render();}
 });
-// exit button: only when running as the installed app (full screen / standalone)
-const asApp=['fullscreen','standalone'].some(m=>matchMedia('(display-mode: '+m+')').matches);
-$('#exitBtn').hidden=!asApp;
+// exit button: always shown (some phones open the home-screen icon in a way that
+// doesn't report as an installed app)
+$('#exitBtn').hidden=false;
 $('#exitBtn').onclick=()=>{
   window.close();
   // if the phone did not let the app close itself, say how to close it
