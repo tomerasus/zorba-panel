@@ -108,6 +108,7 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tag.solar .sw{font-family:var(--f-mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
 .tag.solar .sw small{font-size:9px;color:var(--muted);margin-left:1px}
 .tag.solar .sd{font-family:var(--f-mono);font-size:10.5px;font-variant-numeric:tabular-nums;display:flex;gap:5px;width:100%;justify-content:space-between}
+.tag.solar .sd small{font-size:8.5px;color:var(--muted);margin-left:1px}
 .tag.solar .sd i,.tag.solar .sx i{font-style:normal;color:var(--faint);font-size:9px}
 button.tag.solar{font:inherit;color:var(--fg);cursor:pointer;text-align:left}
 /* details stack label over value so the block keeps its width and never runs off screen */
@@ -290,7 +291,7 @@ function renderPlan(){
     const more=open&&m?`<span class="sx"><i>state</i>${MPPT_STATE[m.state]||('State '+m.state)}</span>
       <span class="sx"><i>solar</i>${m.pv!=null?m.pv+' W':'—'}</span>
       <span class="sx"><i>last 5 days · Ah</i></span>${[0,1,2,3,4].map(i=>`<span class="sd"><i>${dayName(i+1)}</i>${m.hist[i]!=null?toAh(m.hist[i]):'—'}</span>`).join('')}`:'';
-    return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="${m&&m.error?esc(MPPT_ERR[m.error]||('Charger error '+m.error))+' · ':''}Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m?k(m.today):'—'}</span><span class="sd"><i>yday</i>${m?k(m.yest):'—'}</span>${more}</button>`};
+    return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="${m&&m.error?esc(MPPT_ERR[m.error]||('Charger error '+m.error))+' · ':''}Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m&&m.today!=null?toAh(m.today)+'<small>Ah</small>':'—'}</span><span class="sd"><i>yday</i>${m&&m.yest!=null?toAh(m.yest)+'<small>Ah</small>':'—'}</span>${more}</button>`};
   $('#solarL').innerHTML=SOLAR.filter(s=>s.side==='L').map(solarTag).join('');
   $('#solarR').innerHTML=SOLAR.filter(s=>s.side==='R').map(solarTag).join('');
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
