@@ -184,7 +184,7 @@ tr:last-child td{border-bottom:0}
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
       <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span></div></div>
-      <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill" id="settingsBtn" aria-label="Settings">⚙</button></div>
+      <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
     <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically.</span>
@@ -457,6 +457,14 @@ document.addEventListener('click',async e=>{
   try{await cloud('/device/relay/control',{id,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500);
   }catch(err){delete pending[id];toast('Could not switch: '+err.message);render();}
 });
+// exit button: only when running as the installed app (full screen / standalone)
+const asApp=['fullscreen','standalone'].some(m=>matchMedia('(display-mode: '+m+')').matches);
+$('#exitBtn').hidden=!asApp;
+$('#exitBtn').onclick=()=>{
+  window.close();
+  // if the phone did not let the app close itself, say how to close it
+  setTimeout(()=>{ if(!document.hidden) toast("Android didn't let the app close itself: swipe back from the screen edge to close ZORBA"); },400);
+};
 // installable app: register the offline helper (ignored where unsupported)
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 // tap a solar charger to show / hide its details
