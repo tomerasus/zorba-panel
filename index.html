@@ -65,6 +65,22 @@ html,body{overflow-x:hidden}
 .quick{display:grid;gap:0;font-family:var(--f-display);font-weight:700;font-size:26px;line-height:1.05;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000,0 0 10px #000c;padding-left:2px}
 .ptop .quick span{font-family:var(--f-display);font-size:28px;font-weight:700;letter-spacing:.02em}
 #qAh{color:var(--fg)}
+/* stale: older than 50 s — grey, never mistaken for live */
+.quick.old span{color:#c3ccd2 !important;opacity:.55}
+.ptop .quick .qage{font-family:var(--f-mono);font-size:12px;font-weight:500;opacity:1 !important;color:var(--fg) !important;background:color-mix(in srgb,var(--bg) 80%,transparent);border-radius:6px;padding:2px 6px;margin-top:4px;justify-self:start;text-shadow:none}
+.solarcol.old .tag.solar{opacity:.45;filter:grayscale(1)}
+/* alert card over the boat */
+#alerts{position:absolute;z-index:7;top:calc(58px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:min(360px,calc(100% - 24px));background:#2a0d0d;border:2px solid var(--bad);border-radius:12px;padding:10px 12px;box-shadow:0 10px 40px #000c,0 0 24px color-mix(in srgb,var(--bad) 45%,transparent);display:grid;gap:6px}
+#alerts.warn{background:#2a1f0a;border-color:var(--warn);box-shadow:0 10px 40px #000c,0 0 24px color-mix(in srgb,var(--warn) 40%,transparent)}
+#alerts.ringing{animation:alertpulse 1.2s ease-in-out infinite}
+@keyframes alertpulse{50%{box-shadow:0 10px 40px #000c,0 0 40px var(--bad)}}
+#alerts .ah{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:15px}
+#alerts ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+#alerts li{display:flex;gap:8px;align-items:baseline;font-size:14px;line-height:1.3}
+#alerts li i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--bad);box-shadow:0 0 6px var(--bad);transform:translateY(-1px)}
+#alerts li.warn i{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+#alerts .abtns{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#alerts .snote{font-size:11px;color:var(--muted)}
 .quick .unit{font-size:15px;font-weight:600;margin-left:2px;opacity:.85}
 #planHint{position:absolute;z-index:6;bottom:10px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--accent);color:var(--accent);padding:6px 10px;border-radius:8px;white-space:nowrap}
 /* boat drawn bow-up: the source photo is bow-right, so it is rotated 90° inside a tall frame */
@@ -178,15 +194,22 @@ tr:last-child td{border-bottom:0}
       <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="submit">Connect</button><button class="btn" type="button" id="cfgForget">Forget key on this phone</button><button class="btn" type="button" id="cfgClose">Close</button></div>
       <span class="hint" id="cfgMsg"></span>
     </form>
+    <div style="display:grid;gap:8px;max-width:520px;border-top:1px solid var(--line);padding-top:12px">
+      <h2>Device positions</h2>
+      <p style="margin:0;color:var(--muted)">Copy your arranged layout and send it to shilla to make it the default on every phone.</p>
+      <textarea id="layoutOut" class="btn" readonly rows="3" style="text-align:left;font-family:var(--f-mono);font-size:11px;cursor:text;resize:vertical"></textarea>
+      <div><button class="btn" type="button" id="layoutCopy">Copy layout</button> <span class="hint" id="layoutMsg"></span></div>
+    </div>
   </section>
 
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
-      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span></div></div>
+      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span></div></div>
       <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
+    <div id="alerts" role="alert" aria-live="assertive" hidden></div>
     <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically.</span>
     <div class="plan-scroll"><div class="plan" id="plan">
       <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow up">
@@ -262,7 +285,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const dev=id=>S.devices[id]||{};
 const fmt=(v,d=1)=>v==null||isNaN(v)?'—':Number(v).toFixed(d);
 const ago=t=>{if(!t)return '—';const s=Math.round((Date.now()-t)/1000);return s<60?s+' s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
-const stale=t=>!t||Date.now()-t>20*60*1000;
+const stale=t=>!t||Date.now()-t>10*60*1000; // Bluetooth temperature sensors (see SENSOR_STALE_MS)
 const posOf=it=>layout[it.key]||{x:it.x,y:it.y};
 const showRH=new Set(), showSol=new Set();
 // solar day totals arrive in kWh; Ah into the battery = Wh ÷ charging voltage
@@ -302,6 +325,7 @@ function renderPlan(){
     return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="${m&&m.error?esc(MPPT_ERR[m.error]||('Charger error '+m.error))+' · ':''}Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m&&m.today!=null?toAh(m.today)+'<small>Ah</small>':'—'}</span><span class="sd"><i>yday</i>${m&&m.yest!=null?toAh(m.yest)+'<small>Ah</small>':'—'}</span>${more}</button>`};
   $('#solarL').innerHTML=SOLAR.filter(s=>s.side==='L').map(solarTag).join('');
   $('#solarR').innerHTML=SOLAR.filter(s=>s.side==='R').map(solarTag).join('');
+  const solOld=boatAge()>STALE_MS; $('#solarL').classList.toggle('old',solOld); $('#solarR').classList.toggle('old',solOld);
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
 }
 
@@ -359,8 +383,12 @@ function renderQuick(){
   if(solDay.length){qd.innerHTML='<small class="unit sun">Σ</small>'+toAh(solDay.reduce((a,m)=>a+m.today,0))+'<small class="unit">Ah</small>'; qd.style.color='var(--amber)';}
   const ah=$('#qAh'); ah.hidden=b.consumedAh==null; if(b.consumedAh!=null){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); ah.innerHTML=left+'<small class="unit">Ah</small>'; ah.style.color=left<300?'var(--bad)':'var(--fg)';}
   const f=$('#qFlow'); f.innerHTML=(a>0?'+':a<0?'−':'')+Math.abs(a)+'<small class="unit">A</small>'; f.style.color=a>0?'var(--good)':a<0?'var(--warn)':'var(--fg)';
+  // older than 50 s: grey everything and say how old it is
+  const age=boatAge(), old=age>STALE_MS;
+  $('#quick').classList.toggle('old',old);
+  const qa=$('#qAge'); qa.hidden=!old; if(old) qa.textContent='⏱ '+(age===Infinity?'no data':agoShort(age)+' old');
 }
-function render(){renderQuick();renderPlan();renderVictron();renderList();}
+function render(){renderQuick();renderPlan();renderVictron();renderList();renderAlerts();updateConn();}
 
 // ---- phone storage (key, layout, history live only in this browser) ----
 const store={get(k,d){try{const v=localStorage.getItem('zorba.'+k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -414,6 +442,68 @@ function record(b){
   hist=hist.filter(p=>p.t>now-24*3600e3); store.set('history',hist);
 }
 
+// ---- alerts: a card over the boat + ship's bell, while the app is open ----
+// thresholds (change here)
+const ALERT={ahLeft:300, fridgeMax:8, freezerMax:-5, chamberMax:50, boatSilentMin:5};
+const acked=new Set();      // alerts silenced by the user; cleared when the condition goes away
+let lastRing=0, audio=null, audioReady=false;
+function currentAlerts(){
+  const out=[], d=id=>S.devices[id]||{};
+  for(const x of Object.values(S.devices)) if(x.kind==='flood'&&x.flood) out.push({id:'flood-'+x.id,lvl:'bad',text:'Water detected: '+x.name});
+  const b=S.bmv;
+  if(b&&b.consumedAh!=null&&boatAge()<=STALE_MS){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); if(left<ALERT.ahLeft) out.push({id:'ah',lvl:'bad',text:`House bank low: ${left} Ah left`});}
+  const t=(id,max,label)=>{const x=d(id); if(x.tC!=null&&!stale(x.updated)&&x.tC>max) out.push({id:'t-'+id,lvl:'warn',text:`${label} warm: ${fmt(x.tC)} °C`});};
+  t(ID.refDown,ALERT.fridgeMax,'Fridge'); t(ID.frzDown,ALERT.freezerMax,'Freezer');
+  const inv=d(ID.inverter); if(inv.tC!=null&&!stale(inv.updated)&&inv.tC>ALERT.chamberMax) out.push({id:'inv',lvl:'warn',text:`Victron chamber hot: ${fmt(inv.tC)} °C`});
+  if(boatAge()<=STALE_MS) SOLAR.forEach(s=>{const m=(S.solar||[])[s.idx]; if(m&&m.error) out.push({id:'sol-'+s.idx+'-'+m.error,lvl:'warn',text:`Solar ${s.label}: ${MPPT_ERR[m.error]||('error '+m.error)}`});});
+  if(lastOk&&S.bmv&&boatAge()>ALERT.boatSilentMin*60e3&&boatAge()!==Infinity) out.push({id:'silent',lvl:'warn',text:`Boat has not reported for ${agoShort(boatAge())}`});
+  return out;
+}
+function renderAlerts(){
+  const list=currentAlerts(), box=$('#alerts'), ids=new Set(list.map(a=>a.id));
+  for(const k of [...acked]) if(!ids.has(k)) acked.delete(k);       // cleared → can ring again next time
+  const unacked=list.filter(a=>!acked.has(a.id));
+  box.hidden=!list.length; if(!list.length){box.classList.remove('ringing');return;}
+  box.className=list.some(a=>a.lvl==='bad')?'':'warn'; box.classList.toggle('ringing',unacked.length>0);
+  box.innerHTML=`<div class="ah">🔔 Alert</div><ul>${list.map(a=>`<li class="${a.lvl}"><i></i>${esc(a.text)}</li>`).join('')}</ul>
+    <div class="abtns"><span class="snote">${unacked.length?(audioReady?'Bell rings every 30 s':'Tap the screen once to allow the bell sound'):'Silenced'}</span>${unacked.length?'<button class="btn primary" id="silenceBtn">Silence</button>':''}</div>`;
+  const sb=$('#silenceBtn'); if(sb) sb.onclick=()=>{list.forEach(a=>acked.add(a.id)); renderAlerts();};
+  if(unacked.length&&Date.now()-lastRing>30e3){lastRing=Date.now(); ringBell();}
+}
+// ship's bell, synthesised (no sound file): two double-strikes with bell-like overtones
+function ringBell(){
+  try{navigator.vibrate&&navigator.vibrate([300,150,300,400,300,150,300]);}catch(e){}
+  if(!audio||!audioReady) return;
+  const now=audio.currentTime, strike=t=>[[1,0.5],[2.76,0.22],[5.4,0.12],[8.93,0.06]].forEach(([mul,vol])=>{
+    const o=audio.createOscillator(), g=audio.createGain(); o.type='sine'; o.frequency.value=880*mul;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+1.8/mul**0.3);
+    o.connect(g).connect(audio.destination); o.start(t); o.stop(t+2.2);});
+  [0,0.45,1.6,2.05].forEach(dt=>strike(now+dt));
+}
+// phones only allow sound after the user has touched the page once
+function unlockAudio(){
+  try{ if(!audio) audio=new (window.AudioContext||window.webkitAudioContext)();
+    audio.resume().then(()=>{ if(!audioReady){audioReady=true; renderAlerts();} }); }catch(e){}
+}
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{passive:true}));
+
+// ---- freshness: nothing is shown as live if it is more than 50 s old ----
+const STALE_MS=50e3;         // boat link (BMV + solar via the stern-light Shelly reports every 10–25 s)
+const SENSOR_STALE_MS=10*60e3; // Bluetooth temperature sensors: some only report every few minutes
+let lastOk=0, lastErr='';
+// age of the live battery/solar data: the older of "boat last reported" and "phone last reached the cloud"
+function boatAge(){ if(!S.bmv||!S.bmv.updated||!lastOk) return Infinity; return Math.max(Date.now()-S.bmv.updated, Date.now()-lastOk); }
+const agoShort=ms=>ms<60e3?Math.round(ms/1e3)+'s':ms<3600e3?Math.round(ms/60e3)+'m':ms<864e5?Math.round(ms/3600e3)+'h':'>1d';
+function updateConn(){
+  const c=$('#conn'), n=Object.keys(S.devices).length;
+  const cloudDown=!lastOk||Date.now()-lastOk>STALE_MS;   // short refusals (rate limit) are ridden through
+  const age=boatAge();
+  c.querySelector('span').textContent=n||'–';
+  if(cloudDown){ c.className='pill bad'; c.title=lastErr||'Shelly Cloud not reachable'; }
+  else if(age>STALE_MS){ c.className='pill'; c.title=`Connected, but the boat has not reported for ${agoShort(age)}`; }
+  else { c.className='pill ok'; c.title=`Shelly Cloud connected · ${n} devices · boat reported ${agoShort(age)} ago`; }
+}
+
 // ---- live data ----
 let polling=false;
 async function refresh(){
@@ -424,8 +514,9 @@ async function refresh(){
     const {devices,bmv,solar}=shape(data.devices_status||{}); record(bmv);
     S={ok:true,devices,bmv,solar,history:hist};
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
-    const c=$('#conn'),n=Object.keys(devices).length;c.className='pill ok';c.querySelector('span').textContent=n;c.title=`Shelly Cloud connected · ${n} devices`;
-  }catch(e){const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent=Object.keys(S.devices).length||'–';c.title=navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone';}
+    lastOk=Date.now(); lastErr='';
+  }catch(e){ lastErr=navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone'; }
+  updateConn();
   polling=false;
   if(!dragging) render();
 }
@@ -436,6 +527,10 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()
 // ---- settings ----
 $('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
 $('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};
+$('#settingsBtn').addEventListener('click',()=>{$('#layoutOut').value=JSON.stringify(layout);$('#layoutMsg').textContent=Object.keys(layout).length?'':'No items moved on this phone yet.';});
+$('#layoutCopy').onclick=async()=>{const t=$('#layoutOut');t.value=JSON.stringify(layout);
+  try{await navigator.clipboard.writeText(t.value);$('#layoutMsg').textContent='Copied. Paste it in a message to shilla.';}
+  catch(e){t.focus();t.select();$('#layoutMsg').textContent='Selected: long-press it and choose Copy.';}};
 $('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
 $('#setupForm').addEventListener('submit',async e=>{
   e.preventDefault();
