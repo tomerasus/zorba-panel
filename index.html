@@ -256,6 +256,9 @@ const ago=t=>{if(!t)return '—';const s=Math.round((Date.now()-t)/1000);return 
 const stale=t=>!t||Date.now()-t>20*60*1000;
 const posOf=it=>layout[it.key]||{x:it.x,y:it.y};
 const showRH=new Set(), showSol=new Set();
+// solar day totals arrive in kWh; Ah into the battery = Wh ÷ charging voltage
+const CHARGE_V=13.5;
+const toAh=kwh=>Math.round(kwh*1000/CHARGE_V);
 const dayName=back=>new Date(Date.now()-back*864e5).toLocaleDateString('en-GB',{weekday:'short'});
 // Victron charger states and the most common error codes (VE.Direct protocol)
 const MPPT_STATE={0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',9:'Inverting',11:'Power supply',245:'Starting up',247:'Repeated absorption',252:'External control'};
@@ -286,7 +289,7 @@ function renderPlan(){
   const solarTag=s=>{const m=(S.solar||[])[s.idx], k=v=>v==null?'—':fmt(v,2), open=showSol.has(s.idx);
     const more=open&&m?`<span class="sx"><i>state</i>${MPPT_STATE[m.state]||('State '+m.state)}</span>
       <span class="sx"><i>solar</i>${m.pv!=null?m.pv+' W':'—'}</span>
-      <span class="sx"><i>last 5 days · kWh</i></span>${[0,1,2,3,4].map(i=>`<span class="sd"><i>${dayName(i+1)}</i>${m.hist[i]!=null?k(m.hist[i]):'—'}</span>`).join('')}`:'';
+      <span class="sx"><i>last 5 days · Ah</i></span>${[0,1,2,3,4].map(i=>`<span class="sd"><i>${dayName(i+1)}</i>${m.hist[i]!=null?toAh(m.hist[i]):'—'}</span>`).join('')}`:'';
     return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="${m&&m.error?esc(MPPT_ERR[m.error]||('Charger error '+m.error))+' · ':''}Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m?k(m.today):'—'}</span><span class="sd"><i>yday</i>${m?k(m.yest):'—'}</span>${more}</button>`};
   $('#solarL').innerHTML=SOLAR.filter(s=>s.side==='L').map(solarTag).join('');
   $('#solarR').innerHTML=SOLAR.filter(s=>s.side==='R').map(solarTag).join('');
