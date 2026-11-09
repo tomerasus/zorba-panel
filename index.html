@@ -98,6 +98,17 @@ html,body{overflow-x:hidden}
 button.tag{font:inherit;color:inherit;cursor:pointer}
 button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
+.solarcol{position:absolute;z-index:5;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;gap:6px}
+/* hug the stern: just outside the boat's sides, or at the screen edge when there is no room (phones) */
+#solarL{right:min(calc(50% + 100vh * 0.1883 + 6px), calc(100% - 92px));right:min(calc(50% + 100dvh * 0.1883 + 6px), calc(100% - 92px))}
+#solarR{left:min(calc(50% + 100vh * 0.1883 + 6px), calc(100% - 92px));left:min(calc(50% + 100dvh * 0.1883 + 6px), calc(100% - 92px))}
+.solarcol .tag.solar{width:84px}
+.tag.solar{display:grid;gap:0;padding:4px 7px;justify-items:start;min-width:70px;background:color-mix(in srgb,var(--bg) 88%,transparent)}
+.tag.solar b{font-size:9px;color:var(--amber)}
+.tag.solar .sw{font-family:var(--f-mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+.tag.solar .sw small{font-size:9px;color:var(--muted);margin-left:1px}
+.tag.solar .sd{font-family:var(--f-mono);font-size:10.5px;font-variant-numeric:tabular-nums;display:flex;gap:5px;width:100%;justify-content:space-between}
+.tag.solar .sd i{font-style:normal;color:var(--faint);font-size:9px}
 .fridge{display:grid;grid-template-columns:auto auto auto;gap:1px 8px;align-items:baseline;text-align:left}
 .fridge b{grid-column:1}
 .fridge .lvl{font-family:var(--f-mono);font-size:9px;color:var(--faint)}
@@ -161,6 +172,7 @@ tr:last-child td{border-bottom:0}
       <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span></div></div>
       <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill" id="settingsBtn" aria-label="Settings">⚙</button></div>
     </div>
+    <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
     <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically.</span>
     <div class="plan-scroll"><div class="plan" id="plan">
       <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow up">
@@ -220,6 +232,11 @@ const ITEMS=[
  {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:27,y:83},
  {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:70,y:91},
 ];
+// solar chargers, shown in the panel's bottom corners beside the stern (idx = order in the Shelly "Mppt" script)
+const SOLAR=[
+ {side:'L',idx:2,label:'Deck port'},{side:'L',idx:0,label:'Arch port'},
+ {side:'R',idx:3,label:'Deck stbd'},{side:'R',idx:1,label:'Arch stbd'},
+];
 // fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes; 0° = ahead (up)
 const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
 // deck lights: a bright copy of the deck shows through an elliptical "pool" of light (x,y = centre, w,h = size in %)
@@ -257,6 +274,10 @@ function renderPlan(){
       inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b>${t('refDown')}<b>Freezer</b>${t('frzDown')}</button>`;}
     return `<div class="o item" data-key="${it.key}" style="left:${p.x}%;top:${p.y}%">${inner}</div>`;}).join('');
 
+  const solarTag=s=>{const m=(S.solar||[])[s.idx], k=v=>v==null?'—':fmt(v,2);
+    return `<div class="tag solar ${m?'':'stale'}" title="${esc(s.label)} solar: now · today · yesterday (kWh)${m&&m.error?' · charger error '+m.error:''}"><b>${esc(s.label)}</b><span class="sw">${m&&m.pv!=null?m.pv:'—'}<small>W</small></span><span class="sd"><i>today</i>${m?k(m.today):'—'}</span><span class="sd"><i>yday</i>${m?k(m.yest):'—'}</span></div>`};
+  $('#solarL').innerHTML=SOLAR.filter(s=>s.side==='L').map(solarTag).join('');
+  $('#solarR').innerHTML=SOLAR.filter(s=>s.side==='R').map(solarTag).join('');
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
 }
 
@@ -348,7 +369,13 @@ function shape(st){
   }
   const b=st[BMV_DEVICE], num=k=>b?.[k]?.value??null;
   const bmv=b&&b['number:200']?{soc:num('number:200'),voltage:num('number:201'),current:num('number:202'),power:num('number:203'),consumedAh:num('number:204'),timeToGo:b['text:205']?.value??null,updated:utc(b._updated)}:null;
-  return {devices,bmv};
+  // 4 solar chargers packed by the Shelly "Mppt" script into text:210:
+  // "pvW,battA,todayKWh,yesterdayKWh,state,error,rssi;" in SOLAR order
+  const sv=b?.['text:210']?.value;
+  const solar=sv?sv.split(';').map(p=>{const f=p.split(','),n=x=>x===''||x==null?null:Number(x);
+    return f.length<7?null:{pv:n(f[0]),amps:n(f[1]),today:n(f[2]),yest:n(f[3]),state:n(f[4]),error:n(f[5])}}):[];
+  if(bmv) bmv.solarUpdated=utc(b._updated);
+  return {devices,bmv,solar};
 }
 let hist=store.get('history',[]);
 function record(b){
@@ -365,8 +392,8 @@ async function refresh(){
   try{
     if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();}
     const data=await cloud('/device/all_status');
-    const {devices,bmv}=shape(data.devices_status||{}); record(bmv);
-    S={ok:true,devices,bmv,history:hist};
+    const {devices,bmv,solar}=shape(data.devices_status||{}); record(bmv);
+    S={ok:true,devices,bmv,solar,history:hist};
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
     const c=$('#conn'),n=Object.keys(devices).length;c.className='pill ok';c.querySelector('span').textContent=n;c.title=`Shelly Cloud connected · ${n} devices`;
   }catch(e){const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent=Object.keys(S.devices).length||'–';c.title=navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone';}
