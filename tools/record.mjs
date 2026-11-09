@@ -35,7 +35,8 @@ if (!d || now - updated > STALE_S) {
   console.log('Boat silent since', d?._updated, '- no row recorded');
 } else {
   const num = k => d[k]?.value ?? null;
-  const solar = (d['text:210']?.value || '').split(';').map(p => p.split(','));
+  // first 4 segments are the solar chargers; a segment starting with "A" is the alternator
+  const solar = (d['text:210']?.value || '').split(';').filter(p => p && !p.startsWith('A')).slice(0, 4).map(p => p.split(','));
   const solA = solar.reduce((a, f) => a + (Number(f[1]) || 0), 0);
   const solKWh = solar.reduce((a, f) => a + (Number(f[2]) || 0), 0);
   const cons = num('number:204');
