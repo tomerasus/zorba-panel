@@ -1,0 +1,46 @@
+# Records Zorba's battery and solar every 10 minutes into history.json on the "data" branch,
+# so ZORBA can draw a 24 h / 7 day graph even when no phone has the app open.
+# GitHub may start scheduled runs a few minutes late; the graph uses each row's real time.
+name: Record boat history
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Get the recorder script
+        uses: actions/checkout@v4
+        with:
+          path: app
+
+      - name: Get the data branch (created on first run)
+        run: |
+          git clone --depth 1 --branch data "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data || {
+            mkdir data && cd data && git init -b data && git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"; }
+
+      - name: Read Shelly Cloud and append a row
+        env:
+          SHELLY_KEY: ${{ secrets.SHELLY_KEY }}
+          SHELLY_SERVER: ${{ secrets.SHELLY_SERVER }}
+        run: node app/tools/record.mjs data/history.json
+
+      - name: Save (one commit, replaced each time, so the branch never grows)
+        run: |
+          cd data
+          git config user.name "zorba-recorder"
+          git config user.email "zorba-recorder@users.noreply.github.com"
+          git add history.json
+          git commit -q --amend -m "Zorba history" 2>/dev/null || git commit -q -m "Zorba history"
+          git push -q --force origin data
