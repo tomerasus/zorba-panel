@@ -1,0 +1,154 @@
+{
+ "v": 1,
+ "written": 1795877131,
+ "boatUpdated": 1795877130,
+ "boatSilent": false,
+ "battery": {
+  "soc": 26.6,
+  "voltage": 13.03,
+  "current": 1,
+  "power": 13,
+  "consumedAh": -836.4,
+  "ahLeft": 284,
+  "timeToGo": "infinite"
+ },
+ "solar": [
+  {
+   "charger": 1,
+   "pvW": 115,
+   "batteryA": 8.4,
+   "todayKWh": 0.15,
+   "yesterdayKWh": 0.28,
+   "history": [
+    0.28,
+    0.39,
+    0.4,
+    0.37,
+    0.47
+   ],
+   "state": "bulk",
+   "error": 0
+  },
+  {
+   "charger": 2,
+   "pvW": 129,
+   "batteryA": 9.7,
+   "todayKWh": 0.18,
+   "yesterdayKWh": 0.61,
+   "history": [
+    0.61,
+    0.66,
+    0.64,
+    0.69,
+    0.58
+   ],
+   "state": "bulk",
+   "error": 0
+  },
+  {
+   "charger": 3,
+   "pvW": 40,
+   "batteryA": 3,
+   "todayKWh": 0.15,
+   "yesterdayKWh": 0.38,
+   "history": [
+    0.38,
+    0.44,
+    0.48,
+    0.4,
+    0.53
+   ],
+   "state": "bulk",
+   "error": 0
+  },
+  {
+   "charger": 4,
+   "pvW": 95,
+   "batteryA": 7,
+   "todayKWh": 0.19,
+   "yesterdayKWh": 0.53,
+   "history": [
+    0.53,
+    0.62,
+    0.6,
+    0.65,
+    0.48
+   ],
+   "state": "bulk",
+   "error": 0
+  }
+ ],
+ "alternator": {
+  "state": 0,
+  "error": 0,
+  "inV": 12.55,
+  "outV": 13.03,
+  "outA": 0,
+  "inA": 0
+ },
+ "water": {
+  "connectedTank": "fwd",
+  "senderV": 0.39
+ },
+ "fuelSenderV": 8.06,
+ "bilge": "dry",
+ "relays": {
+  "fridge": false,
+  "heater": false,
+  "anchor": false,
+  "deckStern": false,
+  "steam": false,
+  "deckBow": false,
+  "bilge": true,
+  "fan": false,
+  "running": false,
+  "tankFwd": false,
+  "tankSel": false,
+  "blower": false,
+  "fuelSh": false
+ },
+ "climate": {
+  "refUp": {
+   "tC": 14.5,
+   "rh": 43,
+   "at": 1795877128
+  },
+  "refDown": {
+   "tC": 6.5,
+   "rh": 59,
+   "at": 1795877117
+  },
+  "frzUp": {
+   "tC": 10.7,
+   "rh": 25,
+   "at": 1795877112
+  },
+  "frzDown": {
+   "tC": -1.1,
+   "rh": 46,
+   "at": 1795877129
+  },
+  "inverter": {
+   "tC": 38.8,
+   "rh": 41,
+   "at": 1795877124
+  },
+  "master": {
+   "tC": 29.7,
+   "rh": 70,
+   "at": 1795877100
+  },
+  "mainCabin": {
+   "tC": 31.1,
+   "rh": 61,
+   "at": 1795877101
+  },
+  "engine": {
+   "tC": 31.8,
+   "rh": 71,
+   "at": 1795877130
+  }
+ },
+ "flood": false,
+ "offline": []
+}
