@@ -517,7 +517,7 @@ function record(b){
 // ---- alerts: a card over the boat + ship's bell, while the app is open ----
 // thresholds (change here)
 const ALERT={ahLeft:300, fridgeMax:8, freezerMax:-5, chamberMax:50, engineMax:60, boatSilentMin:5,
-  sensorSilentMin:30};  // a temperature sensor that has not reported for this long (set from measured report gaps)
+  sensorSilentMin:20};  // a temperature sensor that has not reported for this long (set from measured report gaps)
 const acked=new Set();      // alerts silenced by the user; cleared when the condition goes away
 let lastRing=0, audio=null, audioReady=false;
 function currentAlerts(){
