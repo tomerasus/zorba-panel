@@ -77,6 +77,15 @@ html,body{overflow-x:hidden}
 #alerts.warn{background:#2a1f0a;border-color:var(--warn);box-shadow:0 10px 40px #000c,0 0 24px color-mix(in srgb,var(--warn) 40%,transparent)}
 #alerts.ringing{animation:alertpulse 1.2s ease-in-out infinite}
 @keyframes alertpulse{50%{box-shadow:0 10px 40px #000c,0 0 40px var(--bad)}}
+.alertset{display:grid;gap:10px;max-width:560px;border-top:1px solid var(--line);padding-top:14px}
+#alertRows{display:grid;gap:2px}
+.arow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.arow label{display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0}
+.arow input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none}
+.aval{display:flex;align-items:center;gap:6px;flex:none}
+.aval input{width:78px;font:inherit;font-family:var(--f-mono);text-align:right;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.aval input:disabled{opacity:.4}
+.aval i{font-style:normal;color:var(--muted);font-size:12px;width:26px}
 #alerts{touch-action:none;cursor:grab;user-select:none}
 #alerts.moving{cursor:grabbing;opacity:.92}
 #alerts .grip{margin-left:auto;font-size:18px;color:var(--muted);letter-spacing:0}
@@ -206,7 +215,14 @@ tr:last-child td{border-bottom:0}
       <label style="display:grid;gap:4px"><span class="hint">Authorization cloud key</span><input id="cfgKey" class="btn" style="text-align:left;cursor:text" type="password" autocomplete="off" required></label>
       <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="submit">Connect</button><button class="btn" type="button" id="cfgForget">Forget key on this phone</button><button class="btn" type="button" id="cfgClose">Close</button></div>
       <span class="hint" id="cfgMsg"></span>
-    </form>  </section>
+    </form>
+    <div class="alertset">
+      <h2>Alerts</h2>
+      <p style="margin:0;color:var(--muted)">Switch each alert on or off and set its limit. Saved on this phone only.</p>
+      <div id="alertRows"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="alertReset">Reset to defaults</button><span class="hint" id="alertMsg"></span></div>
+    </div>
+  </section>
 
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
@@ -515,33 +531,63 @@ function record(b){
 }
 
 // ---- alerts: a card over the boat + ship's bell, while the app is open ----
-// thresholds (change here)
-const ALERT={ahLeft:300, fridgeMax:8, freezerMax:-5, chamberMax:50, engineMax:60, boatSilentMin:5,
-  sensorSilentMin:20};  // a temperature sensor that has not reported for this long (set from measured report gaps)
+// Each alert can be switched on/off and its limit changed in ⚙ → Alerts (saved on this phone only).
+const ALERT_DEFS=[
+  {k:'water',   label:'Water detected (flood sensor)'},
+  {k:'ah',      label:'House bank low: Ah left below', v:300, unit:'Ah', min:0,   max:1120, step:10},
+  {k:'fridge',  label:'Fridge warm: above',            v:8,   unit:'°C', min:-10, max:30,   step:0.5},
+  {k:'freezer', label:'Freezer warm: above',           v:-5,  unit:'°C', min:-30, max:10,   step:0.5},
+  {k:'chamber', label:'Victron chamber hot: above',    v:50,  unit:'°C', min:20,  max:90,   step:1},
+  {k:'engine',  label:'Engine room hot: above',        v:60,  unit:'°C', min:20,  max:120,  step:1},
+  {k:'faults',  label:'Solar or alternator charger fault'},
+  {k:'sensorSilent', label:'Sensor stops reporting for', v:20, unit:'min', min:5, max:240, step:1},
+  {k:'boatSilent',   label:'Boat stops reporting for',   v:5,  unit:'min', min:2, max:120, step:1},
+  {k:'bell',    label:'Bell sound and vibration'},
+];
+const AS_DEFAULT=Object.fromEntries(ALERT_DEFS.map(a=>[a.k,{on:true,v:a.v}]));
+let AS={};
+function loadAlertSettings(){const saved=store.get('alerts',{});
+  AS=Object.fromEntries(ALERT_DEFS.map(a=>{const s=saved[a.k]||{};const v=Number(s.v);
+    return [a.k,{on:s.on!==false, v:a.v==null?undefined:(Number.isFinite(v)?Math.min(a.max,Math.max(a.min,v)):a.v)}];}));}
+loadAlertSettings();
 const acked=new Set();      // alerts silenced by the user; cleared when the condition goes away
 let lastRing=0, audio=null, audioReady=false;
 function currentAlerts(){
-  const out=[], d=id=>S.devices[id]||{};
-  for(const x of Object.values(S.devices)) if(x.kind==='flood'&&x.flood) out.push({id:'flood-'+x.id,lvl:'bad',text:'Water detected: '+x.name});
+  const out=[], d=id=>S.devices[id]||{}, on=k=>AS[k].on, lim=k=>AS[k].v;
+  if(on('water')) for(const x of Object.values(S.devices)) if(x.kind==='flood'&&x.flood) out.push({id:'flood-'+x.id,lvl:'bad',text:'Water detected: '+x.name});
   const b=S.bmv;
-  if(b&&b.consumedAh!=null&&boatAge()<=STALE_MS){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); if(left<ALERT.ahLeft) out.push({id:'ah',lvl:'bad',text:`House bank low: ${left} Ah left`});}
-  const t=(id,max,label)=>{const x=d(id); if(x.tC!=null&&!stale(x.updated)&&x.tC>max) out.push({id:'t-'+id,lvl:'warn',text:`${label} warm: ${fmt(x.tC)} °C`});};
-  t(ID.refDown,ALERT.fridgeMax,'Fridge'); t(ID.frzDown,ALERT.freezerMax,'Freezer');
-  const eng=d(ID.engine); if(eng.tC!=null&&!stale(eng.updated)&&eng.tC>ALERT.engineMax) out.push({id:'eng',lvl:'bad',text:`Engine room hot: ${fmt(eng.tC)} °C`});
-  const inv=d(ID.inverter); if(inv.tC!=null&&!stale(inv.updated)&&inv.tC>ALERT.chamberMax) out.push({id:'inv',lvl:'warn',text:`Victron chamber hot: ${fmt(inv.tC)} °C`});
-  if(boatAge()<=STALE_MS) SOLAR.forEach(s=>{const m=(S.solar||[])[s.idx]; if(m&&m.error) out.push({id:'sol-'+s.idx+'-'+m.error,lvl:'warn',text:`Solar ${s.label}: ${MPPT_ERR[m.error]||('error '+m.error)}`});});
-  if(boatAge()<=STALE_MS&&S.alt&&S.alt.error) out.push({id:'alt-'+S.alt.error,lvl:'warn',text:`Alternator charger fault (${MPPT_ERR[S.alt.error]||('error '+S.alt.error)})`});
+  if(on('ah')&&b&&b.consumedAh!=null&&boatAge()<=STALE_MS){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); if(left<lim('ah')) out.push({id:'ah',lvl:'bad',text:`House bank low: ${left} Ah left`});}
+  const t=(k,id,label,lvl,word)=>{if(!on(k)) return; const x=d(id); if(x.tC!=null&&!stale(x.updated)&&x.tC>lim(k)) out.push({id:'t-'+id,lvl,text:`${label} ${word}: ${fmt(x.tC)} °C`});};
+  t('fridge',ID.refDown,'Fridge','warn','warm'); t('freezer',ID.frzDown,'Freezer','warn','warm');
+  t('engine',ID.engine,'Engine room','bad','hot'); t('chamber',ID.inverter,'Victron chamber','warn','hot');
+  if(on('faults')&&boatAge()<=STALE_MS){
+    SOLAR.forEach(s=>{const m=(S.solar||[])[s.idx]; if(m&&m.error) out.push({id:'sol-'+s.idx+'-'+m.error,lvl:'warn',text:`Solar ${s.label}: ${MPPT_ERR[m.error]||('error '+m.error)}`});});
+    if(S.alt&&S.alt.error) out.push({id:'alt-'+S.alt.error,lvl:'warn',text:`Alternator charger fault (${MPPT_ERR[S.alt.error]||('error '+S.alt.error)})`});
+  }
   // sensors that stop reporting (only while the boat itself is online; otherwise the boat alert covers it)
-  if(lastOk&&Date.now()-lastOk<=STALE_MS&&boatAge()<=STALE_MS){
+  if(on('sensorSilent')&&lastOk&&Date.now()-lastOk<=STALE_MS&&boatAge()<=STALE_MS){
     for(const x of Object.values(S.devices)){
-      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>ALERT.sensorSilentMin*60e3)
+      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>lim('sensorSilent')*60e3)
         out.push({id:'silent-'+x.id,lvl:'warn',text:`No reading from ${x.name} for ${agoShort(Date.now()-x.updated)}`});
       if(x.kind==='flood'&&x.online===false) out.push({id:'off-'+x.id,lvl:'warn',text:`${x.name} sensor is offline`});
     }
   }
-  if(lastOk&&S.bmv&&boatAge()>ALERT.boatSilentMin*60e3&&boatAge()!==Infinity) out.push({id:'silent',lvl:'warn',text:`Boat has not reported for ${agoShort(boatAge())}`});
+  if(on('boatSilent')&&lastOk&&S.bmv&&boatAge()>lim('boatSilent')*60e3&&boatAge()!==Infinity) out.push({id:'silent',lvl:'warn',text:`Boat has not reported for ${agoShort(boatAge())}`});
   return out;
 }
+// ⚙ → Alerts: one row per alert (switch + limit), saved on every change
+function renderAlertSettings(){
+  $('#alertRows').innerHTML=ALERT_DEFS.map(a=>`<div class="arow">
+    <label><input type="checkbox" data-ak="${a.k}" ${AS[a.k].on?'checked':''}> <span>${esc(a.label)}</span></label>
+    ${a.v==null?'<span></span>':`<span class="aval"><input type="number" inputmode="decimal" id="al-${a.k}" data-av="${a.k}" value="${AS[a.k].v}" min="${a.min}" max="${a.max}" step="${a.step}" ${AS[a.k].on?'':'disabled'}><i>${a.unit}</i></span>`}</div>`).join('');
+}
+function saveAlertSettings(){store.set('alerts',AS); acked.clear(); renderAlerts(); $('#alertMsg').textContent='Saved on this phone.';}
+document.addEventListener('change',e=>{
+  const c=e.target.closest('[data-ak]'); if(c){AS[c.dataset.ak].on=c.checked; const n=$('#al-'+c.dataset.ak); if(n) n.disabled=!c.checked; saveAlertSettings(); return;}
+  const n=e.target.closest('[data-av]'); if(n){const a=ALERT_DEFS.find(x=>x.k===n.dataset.av), v=Number(n.value);
+    if(!Number.isFinite(v)||n.value===''){n.value=AS[a.k].v; $('#alertMsg').textContent='Enter a number.'; return;}
+    AS[a.k].v=Math.min(a.max,Math.max(a.min,v)); n.value=AS[a.k].v; saveAlertSettings();}
+});
 function renderAlerts(){
   const list=currentAlerts(), box=$('#alerts'), ids=new Set(list.map(a=>a.id));
   for(const k of [...acked]) if(!ids.has(k)) acked.delete(k);       // cleared → can ring again next time
@@ -551,7 +597,7 @@ function renderAlerts(){
   box.className=list.some(a=>a.lvl==='bad')?'':'warn'; box.classList.toggle('ringing',unacked.length>0); if(moving) box.classList.add('moving');
   placeAlerts();
   box.innerHTML=`<div class="ah">🔔 Alert<span class="grip" title="Drag to move">⠿</span></div><ul>${list.map(a=>`<li class="${a.lvl}"><i></i>${esc(a.text)}</li>`).join('')}</ul>
-    <div class="abtns"><span class="snote">${unacked.length?(audioReady?'Bell rings every 30 s':'Tap the screen once to allow the bell sound'):'Silenced'}</span>${unacked.length?'<button class="btn primary" id="silenceBtn">Silence</button>':''}</div>`;
+    <div class="abtns"><span class="snote">${unacked.length?(!AS.bell.on?'Bell is off in ⚙ settings':audioReady?'Bell rings every 30 s':'Tap the screen once to allow the bell sound'):'Silenced'}</span>${unacked.length?'<button class="btn primary" id="silenceBtn">Silence</button>':''}</div>`;
   const sb=$('#silenceBtn'); if(sb) sb.onclick=()=>{list.forEach(a=>acked.add(a.id)); renderAlerts();};
   if(unacked.length&&Date.now()-lastRing>30e3){lastRing=Date.now(); ringBell();}
 }
@@ -583,6 +629,7 @@ function placeAlerts(){
 })();
 // ship's bell, synthesised (no sound file): two double-strikes with bell-like overtones
 function ringBell(){
+  if(!AS.bell.on) return;                       // ⚙ → Alerts → Bell sound and vibration
   try{navigator.vibrate&&navigator.vibrate([300,150,300,400,300,150,300]);}catch(e){}
   if(!audio||!audioReady) return;
   const now=audio.currentTime, strike=t=>[[1,0.5],[2.76,0.22],[5.4,0.12],[8.93,0.06]].forEach(([mul,vol])=>{
@@ -637,7 +684,9 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()
 
 // ---- settings ----
 $('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
-$('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
+$('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};
+$('#settingsBtn').addEventListener('click',()=>{renderAlertSettings();$('#alertMsg').textContent='';});
+$('#alertReset').onclick=()=>{store.del('alerts'); loadAlertSettings(); renderAlertSettings(); acked.clear(); renderAlerts(); $('#alertMsg').textContent='Defaults restored.';};$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
 $('#setupForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const server=$('#cfgServer').value.trim().replace(/\/+$/,''), key=$('#cfgKey').value.trim()||CFG?.key;
