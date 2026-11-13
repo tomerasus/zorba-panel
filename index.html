@@ -343,7 +343,8 @@ function renderPlan(){
     else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
     else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
-    else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]);return `<span class="v ${stale(x.updated)?'stale':''}">${fmt(x.tC)}°</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
+    else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]), old=x.tC!=null&&stale(x.updated);
+        return `<span class="v" ${old?`style="opacity:.6" title="Last reading ${ago(x.updated)} (weak signal from inside the box)"`:''}>${fmt(x.tC)}°${old?`<small style="font-size:9px;color:var(--faint)"> ${agoShort(Date.now()-x.updated)}</small>`:''}</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
       inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b>${t('refDown')}<b>Freezer</b>${t('frzDown')}</button>`;}
     return `<div class="o item" data-key="${it.key}" style="left:${p.x}%;top:${p.y}%">${inner}</div>`;}).join('');
 
@@ -567,7 +568,7 @@ function currentAlerts(){
   if(on('water')) for(const x of Object.values(S.devices)) if(x.kind==='flood'&&x.flood) out.push({id:'flood-'+x.id,lvl:'bad',text:'Water detected: '+x.name});
   const b=S.bmv;
   if(on('ah')&&b&&b.consumedAh!=null&&boatAge()<=STALE_MS){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); if(left<lim('ah')) out.push({id:'ah',lvl:'bad',text:`House bank low: ${left} Ah left`});}
-  const t=(k,id,label,lvl,word)=>{if(!on(k)) return; const x=d(id); if(x.tC!=null&&!stale(x.updated)&&x.tC>lim(k)) out.push({id:'t-'+id,lvl,text:`${label} ${word}: ${fmt(x.tC)} °C`});};
+  const t=(k,id,label,lvl,word)=>{if(!on(k)) return; const x=d(id); if(x.tC!=null&&(BOX_IDS.has(id)||!stale(x.updated))&&x.tC>lim(k)) out.push({id:'t-'+id,lvl,text:`${label} ${word}: ${fmt(x.tC)} °C`});};
   t('fridge',ID.refDown,'Fridge','warn','warm'); t('freezer',ID.frzDown,'Freezer','warn','warm');
   t('engine',ID.engine,'Engine room','bad','hot'); t('chamber',ID.inverter,'Victron chamber','warn','hot');
   if(on('faults')&&boatAge()<=STALE_MS){
@@ -577,7 +578,7 @@ function currentAlerts(){
   // sensors that stop reporting (only while the boat itself is online; otherwise the boat alert covers it)
   if(on('sensorSilent')&&lastOk&&Date.now()-lastOk<=STALE_MS&&boatAge()<=STALE_MS){
     for(const x of Object.values(S.devices)){
-      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>lim('sensorSilent')*60e3)
+      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>Math.max(lim('sensorSilent')*60e3,BOX_IDS.has(x.id)?BOX_DEAD_MS:0))
         out.push({id:'silent-'+x.id,lvl:'warn',text:`No reading from ${x.name} for ${agoShort(Date.now()-x.updated)}`});
       if(x.kind==='flood'&&x.online===false) out.push({id:'off-'+x.id,lvl:'warn',text:`${x.name} sensor is offline`});
     }
@@ -659,6 +660,11 @@ function unlockAudio(){
 const STALE_MS=50e3;         // boat link (BMV + solar via the stern-light Shelly reports every 10–25 s)
 const SENSOR_STALE_MS=10*60e3; // Bluetooth temperature sensors: some only report every few minutes
 const DEAD_MS=32*60e3;       // no new data for longer than this: the reading is shown as "—"
+// Fridge/freezer sensors sit inside the boxes and reach their gateway (the "Refrigerator" Shelly) only at
+// -89..-95 dBm, so readings often get through only every 30–60+ min. A fridge changes slowly: keep their
+// last reading (with its age) for 3 h before showing "—" or the "stopped reporting" alert.
+const BOX_IDS=new Set([ID.refUp,ID.refDown,ID.frzUp,ID.frzDown]), BOX_DEAD_MS=3*3600e3;
+const deadAfter=id=>BOX_IDS.has(id)?BOX_DEAD_MS:DEAD_MS;
 let lastOk=0, lastErr='';
 // age of the live battery data: the older of "BMV values last changed" and "phone last reached the cloud"
 // (the device's own timestamp stays fresh even when a script on it has stopped, so it is not used)
@@ -672,7 +678,7 @@ let R=null;
 function deaden(R){
   const now=Date.now(), cloudOld=!lastOk||now-lastOk>DEAD_MS, dead=t=>cloudOld||!t||now-t>DEAD_MS;
   const devices={};
-  for(const [id,d] of Object.entries(R.devices)) devices[id]=d.kind==='climate'&&dead(d.updated)?{...d,tC:null,rh:null}:d;
+  for(const [id,d] of Object.entries(R.devices)) devices[id]=d.kind==='climate'&&(cloudOld||!d.updated||now-d.updated>deadAfter(id))?{...d,tC:null,rh:null}:d;
   let bmv=R.bmv;
   if(bmv&&dead(bmv.liveAt)) bmv={...bmv,dead:true,soc:null,voltage:null,current:null,power:null,consumedAh:null,timeToGo:null};
   const solDead=dead(R.solAt);
