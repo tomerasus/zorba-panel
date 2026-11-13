@@ -354,7 +354,8 @@ function renderPlan(){
     return `<button type="button" class="tag solar ${m?'':'stale'} ${m&&m.error?'alarm':''}" data-sol="${s.idx}" aria-expanded="${open}" title="${m&&m.error?esc(MPPT_ERR[m.error]||('Charger error '+m.error))+' · ':''}Tap for more"><b>${esc(s.label)}</b><span class="sw">${m&&m.amps!=null?fmt(m.amps,1):'—'}<small>A</small></span><span class="sd"><i>today</i>${m&&m.today!=null?toAh(m.today)+'<small>Ah</small>':'—'}</span><span class="sd"><i>yday</i>${m&&m.yest!=null?toAh(m.yest)+'<small>Ah</small>':'—'}</span>${more}</button>`};
   $('#solarL').innerHTML=SOLAR.filter(s=>s.side==='L').map(solarTag).join('');
   $('#solarR').innerHTML=SOLAR.filter(s=>s.side==='R').map(solarTag).join('');
-  const solOld=boatAge()>STALE_MS; $('#solarL').classList.toggle('old',solOld); $('#solarR').classList.toggle('old',solOld);
+  // grey when the solar field has not changed for 90 s (it normally changes every ~30 s)
+  const solOld=!S.solAt||!lastOk||Date.now()-Math.min(S.solAt,lastOk)>90e3; $('#solarL').classList.toggle('old',solOld); $('#solarR').classList.toggle('old',solOld);
   $('#leaders').innerHTML=ITEMS.filter(i=>i.mast).map(i=>{const p=posOf(i);return `<path d="M${p.x} ${p.y+4} L${MAST.x} ${MAST.y-2}" stroke="#4d6372" stroke-width="1" stroke-dasharray="3 3" fill="none" vector-effect="non-scaling-stroke"/>`}).join('');
 }
 
@@ -362,13 +363,13 @@ function renderVictron(){
   const b=S.bmv, fan=dev(ID.fan), inv=dev(ID.inverter), shore=dev(ID.shore);
   if(!b){$('#vtiles').innerHTML='<div class="tile">No BMV data yet.</div>';return}
   const charging=b.current>0.3, idle=Math.abs(b.current)<=0.3;
-  const st=idle?['Idle','var(--muted)']:charging?['Charging','var(--good)']:['Discharging','var(--warn)'];
+  const st=b.dead?['No data','var(--muted)']:idle?['Idle','var(--muted)']:charging?['Charging','var(--good)']:['Discharging','var(--warn)'];
   const socCol=b.soc<30?'var(--bad)':b.soc<50?'var(--warn)':'var(--good)';
-  $('#bmvUpd').textContent='BMV via Bluetooth → Shelly · updated '+ago(b.updated);
+  $('#bmvUpd').textContent='BMV via Bluetooth → Shelly · last change '+ago(b.liveAt);
   $('#vtiles').innerHTML=`
    <div class="tile"><div class="lbl">House bank <span class="state" style="color:${st[1]}">${st[0]}</span></div>
      <div class="big" style="color:${socCol}">${fmt(b.soc,1)}<small>%</small></div><div class="soc"><i style="width:${Math.max(0,Math.min(100,b.soc))}%;background:${socCol}"></i></div>
-     <dl class="kv"><dt>Time to go</dt><dd>${esc(b.timeToGo)}</dd><dt>Consumed</dt><dd>${fmt(b.consumedAh,1)} Ah</dd></dl></div>
+     <dl class="kv"><dt>Time to go</dt><dd>${b.timeToGo==null?'—':esc(b.timeToGo)}</dd><dt>Consumed</dt><dd>${fmt(b.consumedAh,1)} Ah</dd></dl></div>
    <div class="tile"><div class="lbl">Battery flow</div><div class="big" style="color:${st[1]}">${b.current>0?'+':''}${fmt(b.current,1)}<small>A</small></div>
      <dl class="kv"><dt>Power</dt><dd>${fmt(b.power,0)} W</dd><dt>Voltage</dt><dd>${fmt(b.voltage,2)} V</dd></dl></div>
    <div class="tile"><div class="lbl">Shore power <span class="state" style="color:${isOn(ID.shore)?'var(--good)':'var(--muted)'}">${isOn(ID.shore)?'To charger':'Off'}</span></div>
@@ -377,8 +378,8 @@ function renderVictron(){
    <div class="tile"><div class="lbl">Victron chamber</div><button type="button" class="big" data-rh="${ID.inverter}" aria-expanded="${showRH.has(ID.inverter)}" title="Tap for humidity" style="background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:var(--f-display)">${fmt(inv.tC,1)}<small>°C</small>${showRH.has(ID.inverter)&&inv.rh!=null?`<small style="color:var(--accent);margin-left:10px">${fmt(inv.rh,0)}% RH</small>`:''}</button>
      <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.fan,'var(--accent)','Victron chamber fan')}<span>Fan ${isOn(ID.fan)?'running':'off'}</span></div>
      <div class="hint">Sensor ${ago(inv.updated)}</div></div>`;
-  const rows=[['State of charge',fmt(b.soc,1),'%'],['Voltage',fmt(b.voltage,2),'V'],['Current',fmt(b.current,2),'A'],['Power',fmt(b.power,0),'W'],['Consumed',fmt(b.consumedAh,1),'Ah'],['Time to go',esc(b.timeToGo),''],['Chamber temperature',fmt(inv.tC,1),'°C']];
-  $('#vtable').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td><td class="n" style="color:var(--faint)">${r[0]==='Chamber temperature'?ago(inv.updated):ago(b.updated)}</td></tr>`).join('');
+  const rows=[['State of charge',fmt(b.soc,1),'%'],['Voltage',fmt(b.voltage,2),'V'],['Current',fmt(b.current,2),'A'],['Power',fmt(b.power,0),'W'],['Consumed',fmt(b.consumedAh,1),'Ah'],['Time to go',b.timeToGo==null?'—':esc(b.timeToGo),''],['Chamber temperature',fmt(inv.tC,1),'°C']];
+  $('#vtable').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td><td class="n" style="color:var(--faint)">${r[0]==='Chamber temperature'?ago(inv.updated):ago(b.liveAt)}</td></tr>`).join('');
 
   renderGraph();
 }
@@ -451,26 +452,32 @@ const BANK_AH=1120; // house bank capacity; the corner shows what is left: 1120 
 // top-left quick view: house bank %, battery current, Ah left — whole numbers
 function renderQuick(){
   const b=S.bmv; $('#quick').hidden=!b; if(!b) return;
-  const soc=Math.round(b.soc), a=Math.round(b.current);
-  const q=$('#qSoc'); q.textContent=soc+'%'; q.style.color='var(--q-green)';
-  const sol=(S.solar||[]).filter(m=>m&&m.amps!=null), qs=$('#qSol'); qs.hidden=!sol.length;
+  const DASH='—';
+  const soc=b.soc==null?null:Math.round(b.soc), a=b.current==null?null:Math.round(b.current);
+  const q=$('#qSoc'); q.textContent=soc==null?DASH+'%':soc+'%'; q.style.color='var(--q-green)';
+  const sol=(S.solar||[]).filter(m=>m&&m.amps!=null), qs=$('#qSol'); qs.hidden=!sol.length&&!S.solDead;
+  if(!sol.length&&S.solDead){qs.innerHTML='<small class="unit sun">☀</small>'+DASH+'<small class="unit">A</small>'; qs.style.color='var(--q-blue)';}
   if(sol.length){const t=sol.reduce((a,m)=>a+m.amps,0); qs.innerHTML='<small class="unit sun">☀</small>'+Math.round(t)+'<small class="unit">A</small>'; qs.style.color='var(--q-blue)';}
   // alternator: output A big, input A small; 0 when the charger is off
-  const al=S.alt, qal=$('#qAlt'); qal.hidden=!al;
+  const al=S.alt, qal=$('#qAlt'); qal.hidden=!al&&!S.solDead;
+  if(!al&&S.solDead){qal.innerHTML=ALT_ICON+DASH+'<small class="unit">A</small>'; qal.style.color='var(--q-blue)'; qal.title='Alternator DC-DC: no new data for over 32 min';}
   if(al){const on=al.state!==0, out=on&&al.outA!=null?Math.round(al.outA):0, inp=on&&al.inA!=null?Math.round(al.inA):0;
     qal.innerHTML=ALT_ICON+out+'<small class="unit">A</small><small class="unit altin">in '+inp+'A</small>';
     qal.style.color='var(--q-blue)';
     qal.title=`Alternator DC-DC: ${ORION_STATE[al.state]||('state '+al.state)}${al.error?' · fault '+al.error:''} · out ${fmt(al.outV,2)} V ${fmt(al.outA,1)} A · in ${fmt(al.inV,2)} V ${al.inA!=null?fmt(al.inA,1)+' A':''}`;}
-  const solDay=(S.solar||[]).filter(m=>m&&m.today!=null), qd=$('#qSolDay'); qd.hidden=!solDay.length;
+  const solDay=(S.solar||[]).filter(m=>m&&m.today!=null), qd=$('#qSolDay'); qd.hidden=!solDay.length&&!S.solDead;
+  if(!solDay.length&&S.solDead){qd.innerHTML='<small class="unit sun">Σ</small>'+DASH+'<small class="unit">Ah</small>'; qd.style.color='var(--q-yellow)';}
   if(solDay.length){qd.innerHTML='<small class="unit sun">Σ</small>'+toAh(solDay.reduce((a,m)=>a+m.today,0))+'<small class="unit">Ah</small>'; qd.style.color='var(--q-yellow)';}
-  const ah=$('#qAh'); ah.hidden=b.consumedAh==null; if(b.consumedAh!=null){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); ah.innerHTML=left+'<small class="unit">Ah</small>'; ah.style.color='var(--q-green)';}
-  const f=$('#qFlow'); f.innerHTML=(a>0?'+':a<0?'−':'')+Math.abs(a)+'<small class="unit">A</small>'; f.style.color=a>0?'var(--q-blue)':a<0?'var(--q-red)':'var(--q-white)';
+  const ah=$('#qAh'); ah.hidden=b.consumedAh==null&&!b.dead;
+  if(b.dead){ah.innerHTML=DASH+'<small class="unit">Ah</small>'; ah.style.color='var(--q-green)';}
+  if(b.consumedAh!=null){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); ah.innerHTML=left+'<small class="unit">Ah</small>'; ah.style.color='var(--q-green)';}
+  const f=$('#qFlow'); f.innerHTML=(a==null?DASH:(a>0?'+':a<0?'−':'')+Math.abs(a))+'<small class="unit">A</small>'; f.style.color=a>0?'var(--q-blue)':a<0?'var(--q-red)':'var(--q-white)';
   // older than 50 s: grey everything and say how old it is
   const age=boatAge(), old=age>STALE_MS;
   $('#quick').classList.toggle('old',old);
   const qa=$('#qAge'); qa.hidden=!old; if(old) qa.textContent='⏱ '+(age===Infinity?'no data':agoShort(age)+' old');
 }
-function render(){renderQuick();renderPlan();renderVictron();renderList();renderAlerts();updateConn();}
+function render(){if(R) S=deaden(R); renderQuick();renderPlan();renderVictron();renderList();renderAlerts();updateConn();}
 
 // ---- phone storage (key, layout, history live only in this browser) ----
 const store={get(k,d){try{const v=localStorage.getItem('zorba.'+k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -507,6 +514,7 @@ function shape(st){
   }
   const b=st[BMV_DEVICE], num=k=>b?.[k]?.value??null;
   const bmv=b&&b['number:200']?{soc:num('number:200'),voltage:num('number:201'),current:num('number:202'),power:num('number:203'),consumedAh:num('number:204'),timeToGo:b['text:205']?.value??null,updated:utc(b._updated)}:null;
+  if(bmv) bmv.liveAt=since('bmv',[bmv.soc,bmv.voltage,bmv.current,bmv.power,bmv.consumedAh,bmv.timeToGo].join(','));
   // 4 solar chargers packed by the Shelly "Mppt" script into text:210:
   // "pvW,battA,todayKWh,yesterdayKWh,state,error,rssi;" in SOLAR order
   const sv=b?.['text:210']?.value;
@@ -520,11 +528,13 @@ function shape(st){
   const as=segs.find(p=>p&&p[0]==='A'), af=as?as.slice(1).split(','):null;
   const alt=af?{type:n(af[0]),state:n(af[1]),error:n(af[2]),inV:n(af[3]),outV:n(af[4]),outA:n(af[5]),inA:n(af[6])}:null;
   if(bmv) bmv.solarUpdated=utc(b._updated);
-  return {devices,bmv,solar,alt};
+  // the solar field also carries the alternator's "times heard" count, so it changes every ~30 s while the script runs
+  const solAt=sv?since('solar',sv):null;
+  return {devices,bmv,solar,alt,solAt};
 }
 let hist=store.get('history',[]);
 function record(b){
-  if(!b) return; const now=Date.now(), m=Math.floor(now/60000)*60000;
+  if(!b||b.dead) return; const now=Date.now(), m=Math.floor(now/60000)*60000;
   if(hist.length&&hist[hist.length-1].t===m) return;
   hist.push({t:m,soc:b.soc,v:b.voltage,a:b.current,w:b.power});
   hist=hist.filter(p=>p.t>now-24*3600e3); store.set('history',hist);
@@ -648,9 +658,26 @@ function unlockAudio(){
 // ---- freshness: nothing is shown as live if it is more than 50 s old ----
 const STALE_MS=50e3;         // boat link (BMV + solar via the stern-light Shelly reports every 10–25 s)
 const SENSOR_STALE_MS=10*60e3; // Bluetooth temperature sensors: some only report every few minutes
+const DEAD_MS=32*60e3;       // no new data for longer than this: the reading is shown as "—"
 let lastOk=0, lastErr='';
-// age of the live battery/solar data: the older of "boat last reported" and "phone last reached the cloud"
-function boatAge(){ if(!S.bmv||!S.bmv.updated||!lastOk) return Infinity; return Math.max(Date.now()-S.bmv.updated, Date.now()-lastOk); }
+// age of the live battery data: the older of "BMV values last changed" and "phone last reached the cloud"
+// (the device's own timestamp stays fresh even when a script on it has stopped, so it is not used)
+function boatAge(){ if(!S.bmv||!S.bmv.liveAt||!lastOk) return Infinity; return Math.max(Date.now()-S.bmv.liveAt, Date.now()-lastOk); }
+// When a reading last CHANGED (kept on this phone). The cloud's per-field timestamps are unreliable,
+// and a stopped Shelly script leaves its last values in place, so a value that never changes is old.
+const seen=store.get('seen',{});
+function since(k,v){ if(!seen[k]||seen[k].v!==v){ seen[k]={v,t:Date.now()}; store.set('seen',seen); } return seen[k].t; }
+// R = everything as received; S = what is shown, with anything older than DEAD_MS blanked to "—"
+let R=null;
+function deaden(R){
+  const now=Date.now(), cloudOld=!lastOk||now-lastOk>DEAD_MS, dead=t=>cloudOld||!t||now-t>DEAD_MS;
+  const devices={};
+  for(const [id,d] of Object.entries(R.devices)) devices[id]=d.kind==='climate'&&dead(d.updated)?{...d,tC:null,rh:null}:d;
+  let bmv=R.bmv;
+  if(bmv&&dead(bmv.liveAt)) bmv={...bmv,dead:true,soc:null,voltage:null,current:null,power:null,consumedAh:null,timeToGo:null};
+  const solDead=dead(R.solAt);
+  return {ok:true,devices,bmv,solar:solDead?[null,null,null,null]:R.solar,alt:solDead?null:R.alt,solDead,solAt:R.solAt,history:hist};
+}
 const agoShort=ms=>ms<60e3?Math.round(ms/1e3)+'s':ms<3600e3?Math.round(ms/60e3)+'m':ms<864e5?Math.round(ms/3600e3)+'h':'>1d';
 function updateConn(){
   const c=$('#conn'), n=Object.keys(S.devices).length;
@@ -669,10 +696,9 @@ async function refresh(){
   try{
     if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();}
     const data=await cloud('/device/all_status');
-    const {devices,bmv,solar,alt}=shape(data.devices_status||{}); record(bmv);
-    S={ok:true,devices,bmv,solar,alt,history:hist};
+    R=shape(data.devices_status||{}); lastOk=Date.now(); lastErr='';
+    S=deaden(R); record(S.bmv);
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
-    lastOk=Date.now(); lastErr='';
   }catch(e){ lastErr=navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone'; }
   updateConn();
   polling=false;
@@ -686,7 +712,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()
 $('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
 $('#cfgClose').onclick=()=>{if(CFG) $('#setup').hidden=true;};
 $('#settingsBtn').addEventListener('click',()=>{renderAlertSettings();$('#alertMsg').textContent='';});
-$('#alertReset').onclick=()=>{store.del('alerts'); loadAlertSettings(); renderAlertSettings(); acked.clear(); renderAlerts(); $('#alertMsg').textContent='Defaults restored.';};$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
+$('#alertReset').onclick=()=>{store.del('alerts'); loadAlertSettings(); renderAlertSettings(); acked.clear(); renderAlerts(); $('#alertMsg').textContent='Defaults restored.';};$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;R=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
 $('#setupForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const server=$('#cfgServer').value.trim().replace(/\/+$/,''), key=$('#cfgKey').value.trim()||CFG?.key;
