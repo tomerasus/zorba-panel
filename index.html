@@ -152,6 +152,17 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @keyframes swivel{to{transform:rotate(360deg)}}
 @keyframes sirenGlow{0%,100%{filter:drop-shadow(0 0 2px #ff2a2a) drop-shadow(0 0 7px #ff2a2a)}50%{filter:drop-shadow(0 0 1px #ff2a2a)}}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
+/* water tank gauge (like the KUS on board): 64 px dial = 4× a running-light dot, 8 lights: 2 red + 6 green */
+.tank{display:grid;justify-items:center;gap:3px}
+.tank .tlabel{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--q-yellow);text-shadow:0 1px 2px #000}
+.tank .dial{position:relative;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2a2f33,#0c0f11 70%);
+  border:5px solid #15191c;box-shadow:0 2px 6px #000a,inset 0 0 6px #000}
+.tank .tl{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;border:1.5px solid #6d757b;background:#1b1f22}
+.tank .tl.red.on{background:#ff3a5c;border-color:#ffb3c0;box-shadow:0 0 5px 2px #ff3a5c}
+.tank .tl.green.on{background:#9dff3a;border-color:#e2ffc4;box-shadow:0 0 5px 2px #8be62e}
+.tank .waves{position:absolute;left:50%;top:60%;width:20px;height:14px;transform:translate(-50%,-50%);color:#c9d1d6}
+.tank .tq{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font:600 11px var(--f-mono);color:var(--faint)}
+.tank.off .dial{opacity:.45}
 /* deck-plan items (lights, sensors, heater, fan, washing machine, bilge): yellow text; state colours (Dry, alarms) keep theirs */
 #items .tag,#items .tag b{color:var(--q-yellow)}
 #items .tag.alarm,#items .tag.alarm b{color:var(--bad)}
@@ -241,6 +252,15 @@ tr:last-child td{border-bottom:0}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="alertReset">Reset to defaults</button><span class="hint" id="alertMsg"></span></div>
     </div>
     <div class="alertset">
+      <h2>FWD water tank</h2>
+      <p style="margin:0;color:var(--muted)">Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
+      <div class="hint" id="tankLive"></div>
+      <div id="tankBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <div class="hint" id="tankPts"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="tankCopy">Copy calibration</button><button class="btn" type="button" id="tankReset">Back to built-in points</button><span class="hint" id="tankMsg"></span></div>
+      <textarea id="tankText" readonly hidden rows="2" style="width:100%;max-width:520px;font:11px var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px"></textarea>
+    </div>
+    <div class="alertset">
       <h2>Layout</h2>
       <p style="margin:0;color:var(--muted)">Where the items sit on the deck plan is saved on this phone. Copy it to send it to Shilla, or go back to the built-in arrangement.</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="layoutCopy">Copy this phone's arrangement</button><button class="btn" type="button" id="layoutReset">Use the default arrangement</button><span class="hint" id="layoutMsg"></span></div>
@@ -300,13 +320,15 @@ const ANCHOR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
 
 // Shelly device ids on Zorba
-const ID={running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
+const ID={tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c',engine:'XB211299198447892'};
 const MAST={x:47,y:40.5};
 
 // Items on the plan; x,y are % of the plan (bow ↑, port ←). Positions are draggable in Arrange mode.
 const ITEMS=[
  {key:'steam', type:'chip', id:ID.steam, label:'Steaming', icon:PROP, c:'var(--white)', x:79,y:33, mast:true},
+ // forward water tank: KUS-style 8-light gauge, driven by the sender-wire voltage (Shelly + Add-on voltmeter)
+ {key:'tankFwd',type:'tank',id:ID.tankFwd,label:'FWD',tank:'fwd',x:30,y:40},
  // running lights (port red, starboard green, stern white): their own Shelly "Running lights"
  {key:'running',type:'running',id:ID.running,label:'Running lights',x:66,y:12},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true},
@@ -372,6 +394,7 @@ function renderPlan(){
     if(it.type==='chip') inner=`<div class="tag"><span>${it.icon}</span><b>${esc(it.label)}</b>${ledHtml(it.id,it.c,it.label)}</div>`;
     else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
+    else if(it.type==='tank') inner=tankHtml(it);
     else if(it.type==='running') inner=`<div class="tag"><b>${esc(it.label)}</b></div>`;   // label only: the lights themselves are drawn on the boat
     else if(it.type==='bilge'){const w=bilgeState();
       inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
@@ -512,7 +535,7 @@ function renderQuick(){
   $('#quick').classList.toggle('old',old);
   const qa=$('#qAge'); qa.hidden=!old; if(old) qa.textContent='⏱ '+(age===Infinity?'no data':agoShort(age)+' old');
 }
-function render(){if(R) S=deaden(R); renderQuick();renderPlan();renderVictron();renderList();renderAlerts();updateConn();}
+function render(){if(R) S=deaden(R); if(!$('#setup').hidden) renderTankCal(); renderQuick();renderPlan();renderVictron();renderList();renderAlerts();updateConn();}
 
 // ---- phone storage (key, layout, history live only in this browser) ----
 const store={get(k,d){try{const v=localStorage.getItem('zorba.'+k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -544,6 +567,8 @@ function shape(st){
     if(s['temperature:0']){d.kind='climate';d.tC=s['temperature:0'].tC;}
     if(s['humidity:0']) d.rh=s['humidity:0'].rh;
     if(s['flood:0']){d.kind='flood';d.flood=!!s['flood:0'].alarm;}
+    // tank Shelly: Add-on voltmeter; xvoltage = sender-wire volts (the Shelly multiplies by 3 for the 20k/10k divider)
+    if(s['voltmeter:100']){d.kind='tank'; const vm=s['voltmeter:100']; d.v=vm.xvoltage!=null?vm.xvoltage:(vm.voltage!=null?vm.voltage*3:null);}
     if(id===ID.bilge){d.kind='bilge';d.input=typeof s['input:0']?.state==='boolean'?s['input:0'].state:null;}
     if(s['devicepower:0']?.battery) d.battery=s['devicepower:0'].battery.percent??null;
     devices[id]=d;
@@ -707,6 +732,31 @@ const deadAfter=id=>BOX_IDS.has(id)?BOX_DEAD_MS:DEAD_MS;
 // bilge alarm: 'wet' (float switch on), 'dry', or 'unknown' (Shelly offline / no data). A mains Shelly only
 // reports on change, so its timestamp is not a heartbeat — the cloud's online flag is what counts.
 function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null) return 'unknown'; return d.input?'wet':'dry';}
+// ---- water tanks: sender-wire volts → number of lit lights (0–8) on a KUS-style gauge ----
+// Calibration = points {v: sender volts, n: lights the real gauge showed}. Built-in points below; each
+// phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
+const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:6}]};   // 2026-11-15: gauge photo showed 6 lights at 0.47 V
+const tankCal=k=>store.get('tankcal-'+k,null)||TANK_CAL_DEFAULT[k]||[];
+function tankLights(k,v){
+  if(v==null) return null;
+  const p=tankCal(k).slice().sort((a,b)=>a.v-b.v);
+  if(!p.length) return null;
+  if(p.length===1) return Math.abs(v-p[0].v)<=0.3?p[0].n:null;   // one point: only trust it close by
+  let a=p[0],b=p[1];
+  for(let i=1;i<p.length;i++){a=p[i-1];b=p[i]; if(v<=b.v) break;}
+  const n=b.v===a.v?a.n:a.n+(b.n-a.n)*(v-a.v)/(b.v-a.v);
+  return Math.max(0,Math.min(8,Math.round(n)));
+}
+// lights sit on an arc like the real gauge: from lower left, over the top, to the right (compass degrees)
+const TANK_ANG=[235,265,295,325,355,25,55,85];
+const WAVES='<svg class="waves" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 4c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+function tankHtml(it){
+  const d=dev(it.id), n=tankLights(it.tank,d.v), off=d.v==null;
+  const leds=TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
+    return `<i class="tl ${i<2?'red':'green'} ${n!=null&&i<n?'on':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join('');
+  const tip=`${esc(it.label)} water tank · ${off?'no data':'sender '+fmt(d.v,2)+' V'} · ${n==null?(off?'':'not calibrated here yet'):n+' of 8 lights'}`;
+  return `<div class="tank ${off?'off':''}" title="${tip}"><b class="tlabel">${esc(it.label)}</b><div class="dial">${leds}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
+}
 // police beacon icon: beams (behind) swivel round the dome while there is water
 const sirenSvg=w=>`<svg class="siren ${w==='wet'?'on':w==='unknown'?'unk':''}" viewBox="0 0 32 32" aria-hidden="true">
   <path class="rays" d="M16 15 L50 3 L50 27 Z M16 15 L-18 3 L-18 27 Z"/>
@@ -727,7 +777,7 @@ function deaden(R){
   const now=Date.now(), cloudOld=!lastOk||now-lastOk>DEAD_MS, dead=t=>cloudOld||!t||now-t>DEAD_MS;
   const devices={};
   for(const [id,d] of Object.entries(R.devices)) devices[id]=d.kind==='climate'&&(cloudOld||!d.updated||now-d.updated>deadAfter(id))?{...d,tC:null,rh:null}
-    :d.kind==='bilge'&&cloudOld?{...d,input:null}:d;
+    :(d.kind==='bilge'&&cloudOld)?{...d,input:null}:(d.kind==='tank'&&(cloudOld||d.online===false))?{...d,v:null}:d;
   let bmv=R.bmv;
   if(bmv&&dead(bmv.liveAt)) bmv={...bmv,dead:true,soc:null,voltage:null,current:null,power:null,consumedAh:null,timeToGo:null};
   const solDead=dead(R.solAt);
@@ -801,7 +851,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.8';
+const BUILD='2026-11-15.9';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -844,6 +894,26 @@ $('#layoutCopy').onclick=async()=>{
   $('#layoutMsg').textContent='Select the text below and copy it.';
   try{await navigator.clipboard.writeText(txt); $('#layoutMsg').textContent='Copied. Paste it to Shilla.';}catch(e){}
 };
+// ⚙ → FWD water tank calibration
+function renderTankCal(){
+  const v=dev(ID.tankFwd).v, n=tankLights('fwd',v), pts=tankCal('fwd').slice().sort((a,b)=>a.n-b.n);
+  $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ZORBA shows ${n==null?'?':n} of 8 lights`;
+  $('#tankBtns').innerHTML=[0,1,2,3,4,5,6,7,8].map(k=>`<button class="btn" type="button" data-tankn="${k}" ${v==null?'disabled':''}>${k}</button>`).join('');
+  $('#tankPts').textContent='Points: '+(pts.length?pts.map(p=>`${p.n} lights = ${fmt(p.v,2)} V`).join(' · '):'none');
+}
+$('#tankBtns').addEventListener('click',e=>{
+  const b=e.target.closest('[data-tankn]'); if(!b) return; const v=dev(ID.tankFwd).v; if(v==null) return;
+  const n=+b.dataset.tankn, pts=tankCal('fwd').filter(p=>p.n!==n&&Math.abs(p.v-v)>0.02);
+  pts.push({v:+v.toFixed(2),n}); store.set('tankcal-fwd',pts); renderTankCal(); render();
+  $('#tankMsg').textContent=`Saved: ${n} lights = ${fmt(v,2)} V`;
+});
+$('#tankReset').onclick=()=>{store.del('tankcal-fwd'); renderTankCal(); render(); $('#tankMsg').textContent='Built-in points restored on this phone.';};
+$('#tankCopy').onclick=async()=>{
+  const txt='ZORBA-TANK fwd '+JSON.stringify(tankCal('fwd')); const ta=$('#tankText'); ta.value=txt; ta.hidden=false; ta.select();
+  $('#tankMsg').textContent='Select the text below and copy it.';
+  try{await navigator.clipboard.writeText(txt); $('#tankMsg').textContent='Copied. Paste it to Shilla.';}catch(e){}
+};
+$('#settingsBtn').addEventListener('click',renderTankCal);
 $('#layoutReset').onclick=()=>{layout={}; store.del('layout-bowup'); render(); $('#layoutMsg').textContent='Default arrangement restored on this phone.';};
 </script>
 </body>
