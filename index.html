@@ -136,6 +136,12 @@ html,body{overflow-x:hidden}
 .tag.stale{opacity:.55}
 button.tag{font:inherit;color:inherit;cursor:pointer}
 button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* bilge beacon: dark when dry, police-style red double strobe when the float switch is on */
+.beacon{width:16px;height:16px;border-radius:50%;flex:none;background:#2a0d0d;border:2px solid #5c2222;box-shadow:0 0 0 1.5px rgba(0,0,0,.7)}
+.beacon.on{background:radial-gradient(circle at 35% 35%,#fff 0 15%,#ff2a2a 45%);border-color:#ff5a5a;animation:police .9s linear infinite}
+.beacon.unk{opacity:.45;border-style:dashed;border-color:#8197a4;background:#0b1218}
+@keyframes police{0%,12%{opacity:1;box-shadow:0 0 10px 4px #ff2a2a,0 0 34px 14px #ff2a2a99}
+  16%,26%{opacity:.2;box-shadow:none}30%,42%{opacity:1;box-shadow:0 0 10px 4px #ff2a2a,0 0 34px 14px #ff2a2a99}46%,100%{opacity:.2;box-shadow:none}}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
 .solarcol{position:absolute;z-index:5;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;gap:6px}
 /* hug the stern: just outside the boat's sides, or at the screen edge when there is no room (phones) */
@@ -275,7 +281,7 @@ const ANCHOR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
 
 // Shelly device ids on Zorba
-const ID={steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',shore:'a085e3c7fe24',fan:'a085e3c95784',
+const ID={steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c',engine:'XB211299198447892'};
 const MAST={x:47,y:40.5};
 
@@ -292,7 +298,8 @@ const ITEMS=[
  {key:'heater',type:'relay',id:ID.heater,label:'Water heater',c:'var(--amber)',x:28,y:72},
  {key:'fan',type:'relay',id:ID.fan,label:'Victron fan',c:'var(--accent)',x:70,y:70},
  {key:'inverter',type:'temp',id:ID.inverter,label:'Inverter',x:70,y:77},
- {key:'shore',type:'relay',id:ID.shore,label:'Shore → charger',c:'var(--good)',x:27,y:83},
+ // bilge alarm: float switch on the Shelly's input (on = water). The relay is not used.
+ {key:'bilge',type:'bilge',id:ID.bilge,label:'Bilge',x:27,y:83},
  {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:70,y:91},
 ];
 // solar chargers, shown in the panel's bottom corners beside the stern (idx = order in the Shelly "Mppt" script)
@@ -342,6 +349,8 @@ function renderPlan(){
     if(it.type==='chip') inner=`<div class="tag"><span>${it.icon}</span><b>${esc(it.label)}</b>${ledHtml(it.id,it.c,it.label)}</div>`;
     else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
+    else if(it.type==='bilge'){const w=bilgeState();
+      inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}"><span class="beacon ${w==='wet'?'on':w==='unknown'?'unk':''}"></span><b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
     else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
     else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]), old=x.tC!=null&&stale(x.updated);
         return `<span class="v" ${old?`style="opacity:.6" title="Last reading ${ago(x.updated)} (weak signal from inside the box)"`:''}>${fmt(x.tC)}°${old?`<small style="font-size:9px;color:var(--faint)"> ${agoShort(Date.now()-x.updated)}</small>`:''}</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
@@ -361,7 +370,7 @@ function renderPlan(){
 }
 
 function renderVictron(){
-  const b=S.bmv, fan=dev(ID.fan), inv=dev(ID.inverter), shore=dev(ID.shore);
+  const b=S.bmv, fan=dev(ID.fan), inv=dev(ID.inverter), bilge=dev(ID.bilge), bw=bilgeState();
   if(!b){$('#vtiles').innerHTML='<div class="tile">No BMV data yet.</div>';return}
   const charging=b.current>0.3, idle=Math.abs(b.current)<=0.3;
   const st=b.dead?['No data','var(--muted)']:idle?['Idle','var(--muted)']:charging?['Charging','var(--good)']:['Discharging','var(--warn)'];
@@ -373,9 +382,9 @@ function renderVictron(){
      <dl class="kv"><dt>Time to go</dt><dd>${b.timeToGo==null?'—':esc(b.timeToGo)}</dd><dt>Consumed</dt><dd>${fmt(b.consumedAh,1)} Ah</dd></dl></div>
    <div class="tile"><div class="lbl">Battery flow</div><div class="big" style="color:${st[1]}">${b.current>0?'+':''}${fmt(b.current,1)}<small>A</small></div>
      <dl class="kv"><dt>Power</dt><dd>${fmt(b.power,0)} W</dd><dt>Voltage</dt><dd>${fmt(b.voltage,2)} V</dd></dl></div>
-   <div class="tile"><div class="lbl">Shore power <span class="state" style="color:${isOn(ID.shore)?'var(--good)':'var(--muted)'}">${isOn(ID.shore)?'To charger':'Off'}</span></div>
-     <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.shore,'var(--good)','Shore power to charger')}<span>Shore power to charger</span></div>
-     <div class="hint">Relay ${shore.online===false?'offline':'online'} · switch temp ${fmt(shore.deviceTemp,0)} °C</div></div>
+   <div class="tile"><div class="lbl">Bilge alarm <span class="state" style="color:${bw==='wet'?'var(--bad)':bw==='dry'?'var(--good)':'var(--muted)'}">${bw==='wet'?'WATER!':bw==='dry'?'Dry':'No data'}</span></div>
+     <div style="display:flex;align-items:center;gap:10px"><span class="beacon ${bw==='wet'?'on':bw==='unknown'?'unk':''}"></span><span>Float switch ${bw==='wet'?'ON — water':bw==='dry'?'off':'unknown'}</span></div>
+     <div class="hint">Shelly ${bilge.online===false?'offline':'online'} · switch temp ${fmt(bilge.deviceTemp,0)} °C</div></div>
    <div class="tile"><div class="lbl">Victron chamber</div><button type="button" class="big" data-rh="${ID.inverter}" aria-expanded="${showRH.has(ID.inverter)}" title="Tap for humidity" style="background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:var(--f-display)">${fmt(inv.tC,1)}<small>°C</small>${showRH.has(ID.inverter)&&inv.rh!=null?`<small style="color:var(--accent);margin-left:10px">${fmt(inv.rh,0)}% RH</small>`:''}</button>
      <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.fan,'var(--accent)','Victron chamber fan')}<span>Fan ${isOn(ID.fan)?'running':'off'}</span></div>
      <div class="hint">Sensor ${ago(inv.updated)}</div></div>`;
@@ -439,9 +448,10 @@ window.addEventListener('resize',()=>renderGraph());
 
 function renderList(){
   const all=Object.values(S.devices);
-  const groups={Switches:all.filter(d=>d.kind==='relay'),Temperatures:all.filter(d=>d.kind==='climate'),Alarms:all.filter(d=>d.kind==='flood')};
+  const groups={Switches:all.filter(d=>d.kind==='relay'),Temperatures:all.filter(d=>d.kind==='climate'),Alarms:all.filter(d=>d.kind==='flood'||d.kind==='bilge')};
   $('#devlist').innerHTML=Object.entries(groups).map(([g,list])=>`<div class="group"><h3>${g}</h3>${list.sort((a,b)=>a.name.localeCompare(b.name)).map(d=>{
     if(d.kind==='relay') return `<div class="row">${ledHtml(d.id,'var(--accent)',d.name)}<span class="name">${esc(d.name)}</span><span class="val ${isOn(d.id)?'on':''}">${pending[d.id]?'…':isOn(d.id)?'ON':'OFF'}</span></div>`;
+    if(d.kind==='bilge'){const w=bilgeState(); return `<div class="row"><span class="beacon ${w==='wet'?'on':w==='unknown'?'unk':''}"></span><span class="name">${esc(d.name)}<div class="sub">float switch</div></span><span class="val" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER':w==='dry'?'Dry':'—'}</span></div>`;}
     if(d.kind==='flood') return `<div class="row"><span class="name">${esc(d.name)}<div class="sub">battery ${fmt(d.battery,0)} %</div></span><span class="val" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER':'Dry'}</span></div>`;
     return `<div class="row" data-rh="${d.id}" style="cursor:pointer" title="Tap for humidity"><span class="name">${esc(d.name.replace(/^master\s+(.)/i,(m,c)=>c.toUpperCase()))}<div class="sub">${ago(d.updated)} · battery ${fmt(d.battery,0)} %</div></span><span class="val on">${fmt(d.tC)} °C${showRH.has(d.id)&&d.rh!=null?`<div class="sub" style="color:var(--accent)">${fmt(d.rh,0)} % RH</div>`:''}</span></div>`;}).join('')}</div>`).join('');
 }
@@ -510,6 +520,7 @@ function shape(st){
     if(s['temperature:0']){d.kind='climate';d.tC=s['temperature:0'].tC;}
     if(s['humidity:0']) d.rh=s['humidity:0'].rh;
     if(s['flood:0']){d.kind='flood';d.flood=!!s['flood:0'].alarm;}
+    if(id===ID.bilge){d.kind='bilge';d.input=typeof s['input:0']?.state==='boolean'?s['input:0'].state:null;}
     if(s['devicepower:0']?.battery) d.battery=s['devicepower:0'].battery.percent??null;
     devices[id]=d;
   }
@@ -544,6 +555,7 @@ function record(b){
 // ---- alerts: a card over the boat + ship's bell, while the app is open ----
 // Each alert can be switched on/off and its limit changed in ⚙ → Alerts (saved on this phone only).
 const ALERT_DEFS=[
+  {k:'bilge',   label:'Bilge alarm: water, or bilge alarm offline'},
   {k:'water',   label:'Water detected (flood sensor)'},
   {k:'ah',      label:'House bank low: Ah left below', v:300, unit:'Ah', min:0,   max:1120, step:10},
   {k:'fridge',  label:'Fridge warm: above',            v:8,   unit:'°C', min:-10, max:30,   step:0.5},
@@ -566,6 +578,9 @@ let lastRing=0, audio=null, audioReady=false;
 function currentAlerts(){
   const out=[], d=id=>S.devices[id]||{}, on=k=>AS[k].on, lim=k=>AS[k].v;
   if(on('water')) for(const x of Object.values(S.devices)) if(x.kind==='flood'&&x.flood) out.push({id:'flood-'+x.id,lvl:'bad',text:'Water detected: '+x.name});
+  if(on('bilge')&&R){const w=bilgeState();
+    if(w==='wet') out.push({id:'bilge',lvl:'bad',text:'BILGE ALARM: water in the bilge!'});
+    else if(w==='unknown'&&lastOk&&Date.now()-lastOk<=STALE_MS) out.push({id:'bilge-off',lvl:'warn',text:'Bilge alarm is offline'});}
   const b=S.bmv;
   if(on('ah')&&b&&b.consumedAh!=null&&boatAge()<=STALE_MS){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); if(left<lim('ah')) out.push({id:'ah',lvl:'bad',text:`House bank low: ${left} Ah left`});}
   const t=(k,id,label,lvl,word)=>{if(!on(k)) return; const x=d(id); if(x.tC!=null&&(BOX_IDS.has(id)||!stale(x.updated))&&x.tC>lim(k)) out.push({id:'t-'+id,lvl,text:`${label} ${word}: ${fmt(x.tC)} °C`});};
@@ -665,6 +680,9 @@ const DEAD_MS=32*60e3;       // no new data for longer than this: the reading is
 // last reading (with its age) for 3 h before showing "—" or the "stopped reporting" alert.
 const BOX_IDS=new Set([ID.refUp,ID.refDown,ID.frzUp,ID.frzDown]), BOX_DEAD_MS=3*3600e3;
 const deadAfter=id=>BOX_IDS.has(id)?BOX_DEAD_MS:DEAD_MS;
+// bilge alarm: 'wet' (float switch on), 'dry', or 'unknown' (Shelly offline / no data). A mains Shelly only
+// reports on change, so its timestamp is not a heartbeat — the cloud's online flag is what counts.
+function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null) return 'unknown'; return d.input?'wet':'dry';}
 let lastOk=0, lastErr='';
 // age of the live battery data: the older of "BMV values last changed" and "phone last reached the cloud"
 // (the device's own timestamp stays fresh even when a script on it has stopped, so it is not used)
@@ -678,7 +696,8 @@ let R=null;
 function deaden(R){
   const now=Date.now(), cloudOld=!lastOk||now-lastOk>DEAD_MS, dead=t=>cloudOld||!t||now-t>DEAD_MS;
   const devices={};
-  for(const [id,d] of Object.entries(R.devices)) devices[id]=d.kind==='climate'&&(cloudOld||!d.updated||now-d.updated>deadAfter(id))?{...d,tC:null,rh:null}:d;
+  for(const [id,d] of Object.entries(R.devices)) devices[id]=d.kind==='climate'&&(cloudOld||!d.updated||now-d.updated>deadAfter(id))?{...d,tC:null,rh:null}
+    :d.kind==='bilge'&&cloudOld?{...d,input:null}:d;
   let bmv=R.bmv;
   if(bmv&&dead(bmv.liveAt)) bmv={...bmv,dead:true,soc:null,voltage:null,current:null,power:null,consumedAh:null,timeToGo:null};
   const solDead=dead(R.solAt);
