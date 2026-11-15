@@ -237,6 +237,12 @@ tr:last-child td{border-bottom:0}
       <p style="margin:0;color:var(--muted)">Switch each alert on or off and set its limit. Saved on this phone only.</p>
       <div id="alertRows"></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="alertReset">Reset to defaults</button><span class="hint" id="alertMsg"></span></div>
+    </div>
+    <div class="alertset">
+      <h2>Layout</h2>
+      <p style="margin:0;color:var(--muted)">Where the items sit on the deck plan is saved on this phone. Copy it to send it to Shilla, or go back to the built-in arrangement.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="layoutCopy">Copy this phone's arrangement</button><button class="btn" type="button" id="layoutReset">Use the default arrangement</button><span class="hint" id="layoutMsg"></span></div>
+      <textarea id="layoutText" readonly hidden rows="4" style="width:100%;max-width:520px;font:11px var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px"></textarea>
       <div class="hint" id="appVersion" style="margin-top:10px"></div>
     </div>
   </section>
@@ -788,7 +794,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.3';
+const BUILD='2026-11-15.4';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -824,6 +830,14 @@ $('#plan').addEventListener('pointermove',e=>{
 $('#plan').addEventListener('pointerup',async()=>{
   if(!dragging) return; dragging=null; store.set('layout-bowup',layout); render();
 });
+// ⚙ → Layout: copy this phone's arrangement (to make it the built-in default), or go back to the default
+$('#layoutCopy').onclick=async()=>{
+  const txt='ZORBA-LAYOUT '+JSON.stringify(Object.fromEntries(ITEMS.map(it=>[it.key,posOf(it)])));
+  const ta=$('#layoutText'); ta.value=txt; ta.hidden=false; ta.select();
+  $('#layoutMsg').textContent='Select the text below and copy it.';
+  try{await navigator.clipboard.writeText(txt); $('#layoutMsg').textContent='Copied. Paste it to Shilla.';}catch(e){}
+};
+$('#layoutReset').onclick=()=>{layout={}; store.del('layout-bowup'); render(); $('#layoutMsg').textContent='Default arrangement restored on this phone.';};
 </script>
 </body>
 </html>
