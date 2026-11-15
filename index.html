@@ -305,6 +305,8 @@ const MAST={x:47,y:40.5};
 // Items on the plan; x,y are % of the plan (bow ↑, port ←). Positions are draggable in Arrange mode.
 const ITEMS=[
  {key:'steam', type:'chip', id:ID.steam, label:'Steaming', icon:PROP, c:'var(--white)', x:79,y:33, mast:true},
+ // running lights (port red, starboard green, stern white): on the same Shelly as the steaming light
+ {key:'running',type:'running',id:ID.steam,label:'Running lights',x:66,y:12},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true},
  {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:50,y:27},
  {key:'master',type:'temp',id:ID.master,label:'Bedroom',x:40,y:18},
@@ -366,6 +368,7 @@ function renderPlan(){
     if(it.type==='chip') inner=`<div class="tag"><span>${it.icon}</span><b>${esc(it.label)}</b>${ledHtml(it.id,it.c,it.label)}</div>`;
     else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
+    else if(it.type==='running') inner=`<div class="tag"><b>${esc(it.label)}</b>${ledHtml(it.id,'var(--port)',it.label+' (port, red)')}${ledHtml(it.id,'var(--stbd)',it.label+' (starboard, green)')}${ledHtml(it.id,'var(--white)',it.label+' (stern, white)')}</div>`;
     else if(it.type==='bilge'){const w=bilgeState();
       inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
     else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
@@ -794,7 +797,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.4';
+const BUILD='2026-11-15.5';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
