@@ -124,6 +124,8 @@ html,body{overflow-x:hidden}
   -webkit-mask:radial-gradient(circle,#000 0,transparent 70%);mask:radial-gradient(circle,#000 0,transparent 70%)}
 .sector.on{opacity:.55}
 .navdot{pointer-events:none}
+.navdot.tap{pointer-events:auto;cursor:pointer;z-index:3}
+.navdot.tap::after{content:'';position:absolute;inset:-12px;border-radius:50%}   /* finger-sized touch area */
 .wash{position:absolute;pointer-events:none;border-radius:50%;opacity:0;transition:opacity .4s;mix-blend-mode:screen}
 .wash.on{opacity:1}
 .lit{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .5s;overflow:hidden}
@@ -327,7 +329,7 @@ const SOLAR=[
  {side:'R',idx:3,label:'Deck stbd'},{side:'R',idx:1,label:'Arch stbd'},
 ];
 // fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes; 0° = ahead (up)
-const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
+const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5,tap:true},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5,tap:true},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
 // deck lights: a bright copy of the deck shows through an elliptical "pool" of light (x,y = centre, w,h = size in %)
 const WASH=[{id:ID.deckBow,x:48,y:17,w:80,h:34,col:'255,240,205'},{id:ID.deckStern,x:50,y:90,w:95,h:24,col:'255,240,205'}];
 
@@ -359,7 +361,9 @@ function renderPlan(){
   const fx=[];
   const navOn=isOn(ID.steam);
   NAV.forEach(n=>{fx.push(`<div class="sector ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;background:conic-gradient(from ${n.from}deg, ${n.c} 0 ${n.span}deg, transparent 0)"></div>`);
-    fx.push(`<span class="o led navdot ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></span>`);});
+    // the red and green bow lights are switches for the running lights; the white stern light is display only
+    fx.push(n.tap?`<button type="button" class="o led navdot tap ${navOn?'on':''} ${pending[ID.steam]?'pending':''}" data-id="${ID.steam}" aria-label="Running lights: ${navOn?'on':'off'}" aria-pressed="${navOn}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></button>`
+      :`<span class="o led navdot ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></span>`);});
   WASH.forEach(w=>{const m=`radial-gradient(ellipse ${w.w/2}% ${w.h/2}% at ${w.x}% ${w.y}%,#000 0,rgba(0,0,0,.85) 35%,rgba(0,0,0,.35) 70%,transparent 100%)`;
     fx.push(`<div class="lit ${isOn(w.id)?'on':''}" style="-webkit-mask-image:${m};mask-image:${m}"><img src="zorbaabove.jpeg" alt=""><div style="position:absolute;inset:0;background:rgba(${w.col},.22);mix-blend-mode:screen"></div></div>`);});
   $('#fx').innerHTML=fx.join('');
@@ -797,7 +801,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.6';
+const BUILD='2026-11-15.7';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
