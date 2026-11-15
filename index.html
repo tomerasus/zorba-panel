@@ -567,8 +567,9 @@ function shape(st){
     if(s['temperature:0']){d.kind='climate';d.tC=s['temperature:0'].tC;}
     if(s['humidity:0']) d.rh=s['humidity:0'].rh;
     if(s['flood:0']){d.kind='flood';d.flood=!!s['flood:0'].alarm;}
-    // tank Shelly: Add-on voltmeter; xvoltage = sender-wire volts (the Shelly multiplies by 3 for the 20k/10k divider)
-    if(s['voltmeter:100']){d.kind='tank'; const vm=s['voltmeter:100']; d.v=vm.xvoltage!=null?vm.xvoltage:(vm.voltage!=null?vm.voltage*3:null);}
+    // tank Shelly: Add-on voltmeter. Always use the RAW reading × 3 (20k/10k divider) = sender-wire volts; the
+    // Shelly's own custom formula (xvoltage) is left free for the owner to show % in the Shelly app.
+    if(s['voltmeter:100']){d.kind='tank'; const vm=s['voltmeter:100']; d.v=vm.voltage!=null?+(vm.voltage*3).toFixed(2):null; d.xv=vm.xvoltage??null;}
     if(id===ID.bilge){d.kind='bilge';d.input=typeof s['input:0']?.state==='boolean'?s['input:0'].state:null;}
     if(s['devicepower:0']?.battery) d.battery=s['devicepower:0'].battery.percent??null;
     devices[id]=d;
@@ -852,7 +853,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.11';
+const BUILD='2026-11-15.12';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
