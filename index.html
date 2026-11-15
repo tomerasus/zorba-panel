@@ -747,8 +747,9 @@ function tankLights(k,v){
   const n=b.v===a.v?a.n:a.n+(b.n-a.n)*(v-a.v)/(b.v-a.v);
   return Math.max(0,Math.min(8,Math.round(n)));
 }
-// lights sit on an arc like the real gauge: from lower left, over the top, to the right (compass degrees)
-const TANK_ANG=[235,265,295,325,355,25,55,85];
+// lights sit on a symmetric arc like the real gauge: lower left (235°), over the top, to lower right (125°),
+// so the first red and the last green are at the same height (compass degrees, evenly spaced)
+const TANK_ANG=Array.from({length:8},(_,i)=>(235+i*250/7)%360);
 const WAVES='<svg class="waves" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 4c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 function tankHtml(it){
   const d=dev(it.id), n=tankLights(it.tank,d.v), off=d.v==null;
@@ -851,7 +852,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.10';
+const BUILD='2026-11-15.11';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
