@@ -175,6 +175,8 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* deck-plan items (lights, sensors, heater, fan, washing machine, bilge): yellow text; state colours (Dry, alarms) keep theirs */
 #items .tag,#items .tag b{color:var(--q-yellow)}
 #items .tag.alarm,#items .tag.alarm b{color:var(--bad)}
+/* temperature numbers on the plan (sensors, fridge, freezer): green */
+#items .tag.temp .v,#items .tag.fridge .v{color:var(--q-green)}
 .solarcol{position:absolute;z-index:5;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;gap:6px}
 /* hug the stern: just outside the boat's sides, or at the screen edge when there is no room (phones) */
 #solarL{right:min(calc(50% + 100vh * 0.1883 + 6px), calc(100% - 92px));right:min(calc(50% + 100dvh * 0.1883 + 6px), calc(100% - 92px))}
@@ -340,12 +342,12 @@ const ITEMS=[
  // light mode: ⚓ anchor schedules / ⛵ running-light schedules / off — only one at a time. The mode is carried by two
  // relays with nothing wired (Anchor mode = bilge Shelly relay, Sail mode = FWD tank Shelly relay); a script on each
  // switches the light Shelly's schedules (see shelly\lightmode-*.js)
- {key:'mode',type:'mode',label:'Lights mode',x:84,y:4},
+ {key:'mode',type:'mode',label:'Lights mode',x:50,y:13},
  // forward water tank: KUS-style 8-light gauge, driven by the sender-wire voltage (Shelly + Add-on voltmeter)
  {key:'tankFwd',type:'tank',id:ID.tankFwd,label:'FWD',tank:'fwd',x:30,y:40},
  // running lights (port red, starboard green, stern white): their own Shelly "Running lights"
- {key:'running',type:'running',id:ID.running,label:'Running lights',x:66,y:12},
- {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true},
+ {key:'running',type:'running',id:ID.running,label:'Running lights',x:50,y:9},
+ {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true, below:true},
  {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:50,y:27},
  {key:'master',type:'temp',id:ID.master,label:'Bedroom',x:40,y:18},
  {key:'mainCabin',type:'temp',id:ID.mainCabin,label:'Main cabin',x:36,y:48},
@@ -888,7 +890,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.14';
+const BUILD='2026-11-15.15';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
