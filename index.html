@@ -300,15 +300,15 @@ const ANCHOR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
 
 // Shelly device ids on Zorba
-const ID={steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
+const ID={running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c',engine:'XB211299198447892'};
 const MAST={x:47,y:40.5};
 
 // Items on the plan; x,y are % of the plan (bow ↑, port ←). Positions are draggable in Arrange mode.
 const ITEMS=[
  {key:'steam', type:'chip', id:ID.steam, label:'Steaming', icon:PROP, c:'var(--white)', x:79,y:33, mast:true},
- // running lights (port red, starboard green, stern white): on the same Shelly as the steaming light
- {key:'running',type:'running',id:ID.steam,label:'Running lights',x:66,y:12},
+ // running lights (port red, starboard green, stern white): their own Shelly "Running lights"
+ {key:'running',type:'running',id:ID.running,label:'Running lights',x:66,y:12},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true},
  {key:'deckBow',type:'relay',id:ID.deckBow,label:'Deck bow light',c:'var(--white)',x:50,y:27},
  {key:'master',type:'temp',id:ID.master,label:'Bedroom',x:40,y:18},
@@ -329,7 +329,7 @@ const SOLAR=[
  {side:'R',idx:3,label:'Deck stbd'},{side:'R',idx:1,label:'Arch stbd'},
 ];
 // fixed effects: nav light sectors (driven by the steaming/nav relay) and deck washes; 0° = ahead (up)
-const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5,tap:true},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5,tap:true},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135}];
+const NAV=[{x:42.5,y:6.6,c:'var(--port)',from:247.5,span:112.5,tap:true},{x:52.5,y:6.6,c:'var(--stbd)',from:0,span:112.5,tap:true},{x:49.8,y:96.4,c:'var(--white)',from:112.5,span:135,tap:true}];
 // deck lights: a bright copy of the deck shows through an elliptical "pool" of light (x,y = centre, w,h = size in %)
 const WASH=[{id:ID.deckBow,x:48,y:17,w:80,h:34,col:'255,240,205'},{id:ID.deckStern,x:50,y:90,w:95,h:24,col:'255,240,205'}];
 
@@ -359,10 +359,10 @@ const ledHtml=(id,c,label)=>{const d=dev(id);return `<button class="led ${isOn(i
 
 function renderPlan(){
   const fx=[];
-  const navOn=isOn(ID.steam);
+  const navOn=isOn(ID.running);   // red/green/white follow the running-lights Shelly, not the steaming light
   NAV.forEach(n=>{fx.push(`<div class="sector ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;background:conic-gradient(from ${n.from}deg, ${n.c} 0 ${n.span}deg, transparent 0)"></div>`);
-    // the red and green bow lights are switches for the running lights; the white stern light is display only
-    fx.push(n.tap?`<button type="button" class="o led navdot tap ${navOn?'on':''} ${pending[ID.steam]?'pending':''}" data-id="${ID.steam}" aria-label="Running lights: ${navOn?'on':'off'}" aria-pressed="${navOn}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></button>`
+    // red, green and white are the running lights (one Shelly): each of the three is a switch for all of them
+    fx.push(n.tap?`<button type="button" class="o led navdot tap ${navOn?'on':''} ${pending[ID.running]?'pending':''}" data-id="${ID.running}" aria-label="Running lights: ${navOn?'on':'off'}" aria-pressed="${navOn}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></button>`
       :`<span class="o led navdot ${navOn?'on':''}" style="left:${n.x}%;top:${n.y}%;--c:${n.c}"></span>`);});
   WASH.forEach(w=>{const m=`radial-gradient(ellipse ${w.w/2}% ${w.h/2}% at ${w.x}% ${w.y}%,#000 0,rgba(0,0,0,.85) 35%,rgba(0,0,0,.35) 70%,transparent 100%)`;
     fx.push(`<div class="lit ${isOn(w.id)?'on':''}" style="-webkit-mask-image:${m};mask-image:${m}"><img src="zorbaabove.jpeg" alt=""><div style="position:absolute;inset:0;background:rgba(${w.col},.22);mix-blend-mode:screen"></div></div>`);});
@@ -801,7 +801,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.7';
+const BUILD='2026-11-15.8';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
