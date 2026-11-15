@@ -150,6 +150,9 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @keyframes swivel{to{transform:rotate(360deg)}}
 @keyframes sirenGlow{0%,100%{filter:drop-shadow(0 0 2px #ff2a2a) drop-shadow(0 0 7px #ff2a2a)}50%{filter:drop-shadow(0 0 1px #ff2a2a)}}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
+/* deck-plan items (lights, sensors, heater, fan, washing machine, bilge): yellow text; state colours (Dry, alarms) keep theirs */
+#items .tag,#items .tag b{color:var(--q-yellow)}
+#items .tag.alarm,#items .tag.alarm b{color:var(--bad)}
 .solarcol{position:absolute;z-index:5;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;gap:6px}
 /* hug the stern: just outside the boat's sides, or at the screen edge when there is no room (phones) */
 #solarL{right:min(calc(50% + 100vh * 0.1883 + 6px), calc(100% - 92px));right:min(calc(50% + 100dvh * 0.1883 + 6px), calc(100% - 92px))}
