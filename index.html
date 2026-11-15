@@ -136,12 +136,19 @@ html,body{overflow-x:hidden}
 .tag.stale{opacity:.55}
 button.tag{font:inherit;color:inherit;cursor:pointer}
 button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-/* bilge beacon: dark when dry, police-style red double strobe when the float switch is on */
-.beacon{width:16px;height:16px;border-radius:50%;flex:none;background:#2a0d0d;border:2px solid #5c2222;box-shadow:0 0 0 1.5px rgba(0,0,0,.7)}
-.beacon.on{background:radial-gradient(circle at 35% 35%,#fff 0 15%,#ff2a2a 45%);border-color:#ff5a5a;animation:police .9s linear infinite}
-.beacon.unk{opacity:.45;border-style:dashed;border-color:#8197a4;background:#0b1218}
-@keyframes police{0%,12%{opacity:1;box-shadow:0 0 10px 4px #ff2a2a,0 0 34px 14px #ff2a2a99}
-  16%,26%{opacity:.2;box-shadow:none}30%,42%{opacity:1;box-shadow:0 0 10px 4px #ff2a2a,0 0 34px 14px #ff2a2a99}46%,100%{opacity:.2;box-shadow:none}}
+/* bilge siren: a police beacon (dome on a base). Dry = unlit; water = red dome with two light beams swivelling round it */
+.siren{width:26px;height:26px;flex:none;overflow:visible;display:block}
+.siren .base{fill:#2b3640;stroke:#55687a;stroke-width:1}
+.siren .dome{fill:#3a1616;stroke:#6e2c2c;stroke-width:1.2}
+.siren .shine{fill:#fff;opacity:.18}
+.siren .rays{opacity:0;fill:#ff2a2a}
+.siren.on .dome{fill:#ff2a2a;stroke:#ffb0b0;animation:sirenGlow .8s linear infinite}
+.siren.on .shine{opacity:.75}
+.siren.on .rays{opacity:.55;transform-box:view-box;transform-origin:16px 15px;animation:swivel .8s linear infinite}
+.siren.unk{opacity:.45}
+.siren.unk .dome{fill:#1a232b;stroke:#8197a4;stroke-dasharray:2 2}
+@keyframes swivel{to{transform:rotate(360deg)}}
+@keyframes sirenGlow{0%,100%{filter:drop-shadow(0 0 2px #ff2a2a) drop-shadow(0 0 7px #ff2a2a)}50%{filter:drop-shadow(0 0 1px #ff2a2a)}}
 .tag.alarm{border-color:var(--bad);color:var(--bad);box-shadow:0 0 12px color-mix(in srgb,var(--bad) 50%,transparent)}
 .solarcol{position:absolute;z-index:5;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;gap:6px}
 /* hug the stern: just outside the boat's sides, or at the screen edge when there is no room (phones) */
@@ -350,7 +357,7 @@ function renderPlan(){
     else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
     else if(it.type==='bilge'){const w=bilgeState();
-      inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}"><span class="beacon ${w==='wet'?'on':w==='unknown'?'unk':''}"></span><b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
+      inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
     else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
     else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]), old=x.tC!=null&&stale(x.updated);
         return `<span class="v" ${old?`style="opacity:.6" title="Last reading ${ago(x.updated)} (weak signal from inside the box)"`:''}>${fmt(x.tC)}°${old?`<small style="font-size:9px;color:var(--faint)"> ${agoShort(Date.now()-x.updated)}</small>`:''}</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
@@ -383,7 +390,7 @@ function renderVictron(){
    <div class="tile"><div class="lbl">Battery flow</div><div class="big" style="color:${st[1]}">${b.current>0?'+':''}${fmt(b.current,1)}<small>A</small></div>
      <dl class="kv"><dt>Power</dt><dd>${fmt(b.power,0)} W</dd><dt>Voltage</dt><dd>${fmt(b.voltage,2)} V</dd></dl></div>
    <div class="tile"><div class="lbl">Bilge alarm <span class="state" style="color:${bw==='wet'?'var(--bad)':bw==='dry'?'var(--good)':'var(--muted)'}">${bw==='wet'?'WATER!':bw==='dry'?'Dry':'No data'}</span></div>
-     <div style="display:flex;align-items:center;gap:10px"><span class="beacon ${bw==='wet'?'on':bw==='unknown'?'unk':''}"></span><span>Float switch ${bw==='wet'?'ON — water':bw==='dry'?'off':'unknown'}</span></div>
+     <div style="display:flex;align-items:center;gap:10px">${sirenSvg(bw)}<span>Float switch ${bw==='wet'?'ON — water':bw==='dry'?'off':'unknown'}</span></div>
      <div class="hint">Shelly ${bilge.online===false?'offline':'online'} · switch temp ${fmt(bilge.deviceTemp,0)} °C</div></div>
    <div class="tile"><div class="lbl">Victron chamber</div><button type="button" class="big" data-rh="${ID.inverter}" aria-expanded="${showRH.has(ID.inverter)}" title="Tap for humidity" style="background:none;border:0;padding:0;text-align:left;cursor:pointer;font-family:var(--f-display)">${fmt(inv.tC,1)}<small>°C</small>${showRH.has(ID.inverter)&&inv.rh!=null?`<small style="color:var(--accent);margin-left:10px">${fmt(inv.rh,0)}% RH</small>`:''}</button>
      <div style="display:flex;align-items:center;gap:10px">${ledHtml(ID.fan,'var(--accent)','Victron chamber fan')}<span>Fan ${isOn(ID.fan)?'running':'off'}</span></div>
@@ -451,7 +458,7 @@ function renderList(){
   const groups={Switches:all.filter(d=>d.kind==='relay'),Temperatures:all.filter(d=>d.kind==='climate'),Alarms:all.filter(d=>d.kind==='flood'||d.kind==='bilge')};
   $('#devlist').innerHTML=Object.entries(groups).map(([g,list])=>`<div class="group"><h3>${g}</h3>${list.sort((a,b)=>a.name.localeCompare(b.name)).map(d=>{
     if(d.kind==='relay') return `<div class="row">${ledHtml(d.id,'var(--accent)',d.name)}<span class="name">${esc(d.name)}</span><span class="val ${isOn(d.id)?'on':''}">${pending[d.id]?'…':isOn(d.id)?'ON':'OFF'}</span></div>`;
-    if(d.kind==='bilge'){const w=bilgeState(); return `<div class="row"><span class="beacon ${w==='wet'?'on':w==='unknown'?'unk':''}"></span><span class="name">${esc(d.name)}<div class="sub">float switch</div></span><span class="val" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER':w==='dry'?'Dry':'—'}</span></div>`;}
+    if(d.kind==='bilge'){const w=bilgeState(); return `<div class="row">${sirenSvg(w)}<span class="name">${esc(d.name)}<div class="sub">float switch</div></span><span class="val" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER':w==='dry'?'Dry':'—'}</span></div>`;}
     if(d.kind==='flood') return `<div class="row"><span class="name">${esc(d.name)}<div class="sub">battery ${fmt(d.battery,0)} %</div></span><span class="val" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER':'Dry'}</span></div>`;
     return `<div class="row" data-rh="${d.id}" style="cursor:pointer" title="Tap for humidity"><span class="name">${esc(d.name.replace(/^master\s+(.)/i,(m,c)=>c.toUpperCase()))}<div class="sub">${ago(d.updated)} · battery ${fmt(d.battery,0)} %</div></span><span class="val on">${fmt(d.tC)} °C${showRH.has(d.id)&&d.rh!=null?`<div class="sub" style="color:var(--accent)">${fmt(d.rh,0)} % RH</div>`:''}</span></div>`;}).join('')}</div>`).join('');
 }
@@ -683,6 +690,12 @@ const deadAfter=id=>BOX_IDS.has(id)?BOX_DEAD_MS:DEAD_MS;
 // bilge alarm: 'wet' (float switch on), 'dry', or 'unknown' (Shelly offline / no data). A mains Shelly only
 // reports on change, so its timestamp is not a heartbeat — the cloud's online flag is what counts.
 function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null) return 'unknown'; return d.input?'wet':'dry';}
+// police beacon icon: beams (behind) swivel round the dome while there is water
+const sirenSvg=w=>`<svg class="siren ${w==='wet'?'on':w==='unknown'?'unk':''}" viewBox="0 0 32 32" aria-hidden="true">
+  <path class="rays" d="M16 15 L50 3 L50 27 Z M16 15 L-18 3 L-18 27 Z"/>
+  <path class="dome" d="M8 23 V15 a8 8 0 0 1 16 0 V23 Z"/>
+  <ellipse class="shine" cx="12.5" cy="13" rx="1.6" ry="3"/>
+  <rect class="base" x="5" y="23" width="22" height="5" rx="1.5"/></svg>`;
 let lastOk=0, lastErr='';
 // age of the live battery data: the older of "BMV values last changed" and "phone last reached the cloud"
 // (the device's own timestamp stays fresh even when a script on it has stopped, so it is not used)
