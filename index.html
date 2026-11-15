@@ -735,7 +735,7 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // ---- water tanks: sender-wire volts → number of lit lights (0–8) on a KUS-style gauge ----
 // Calibration = points {v: sender volts, n: lights the real gauge showed}. Built-in points below; each
 // phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
-const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:6}]};   // 2026-11-15: gauge photo showed 6 lights at 0.47 V
+const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7}]};   // 2026-11-15: owner: 0.47 V = 7/8
 const tankCal=k=>store.get('tankcal-'+k,null)||TANK_CAL_DEFAULT[k]||[];
 function tankLights(k,v){
   if(v==null) return null;
@@ -851,7 +851,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.9';
+const BUILD='2026-11-15.10';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
