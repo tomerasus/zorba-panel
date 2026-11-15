@@ -237,6 +237,7 @@ tr:last-child td{border-bottom:0}
       <p style="margin:0;color:var(--muted)">Switch each alert on or off and set its limit. Saved on this phone only.</p>
       <div id="alertRows"></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="alertReset">Reset to defaults</button><span class="hint" id="alertMsg"></span></div>
+      <div class="hint" id="appVersion" style="margin-top:10px"></div>
     </div>
   </section>
 
@@ -783,7 +784,19 @@ $('#exitBtn').onclick=()=>{
   setTimeout(()=>{ if(!document.hidden) toast("Android didn't let the app close itself: swipe back from the screen edge to close ZORBA"); },400);
 };
 // installable app: register the offline helper (ignored where unsupported)
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}));}
+// ---- self-update: an installed app can stay open for days, so look for a newer published version
+// every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
+// BUILD must change on every publish.
+const BUILD='2026-11-15.3';
+async function checkUpdate(){
+  if(!navigator.onLine||dragging||arranging) return;
+  try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
+    const m=t.match(/const BUILD='([^']+)'/); if(m&&m[1]!==BUILD) location.reload(); }catch(e){}
+}
+setInterval(checkUpdate,120e3);
+$('#appVersion').textContent='ZORBA app version '+BUILD;
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) checkUpdate()});
 // tap a solar charger to show / hide its details
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-sol]'); if(!t) return;

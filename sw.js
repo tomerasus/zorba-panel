@@ -1,7 +1,7 @@
 // ZORBA app helper: keeps a copy of the page and images so the app opens instantly
 // and still shows the boat without internet. The page itself is always fetched fresh
 // when online, so new versions arrive on the next open. Shelly Cloud calls are never cached.
-const CACHE = 'zorba-v2'; // bump when images/icons change so phones refresh them
+const CACHE = 'zorba-v3'; // bump when images/icons change so phones refresh them
 const SHELL = ['./', './index.html', './zorbaabove.jpeg', './icon-192.png', './icon-512.png', './manifest.webmanifest'];
 
 self.addEventListener('install', e => {
@@ -19,8 +19,9 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return; // Shelly Cloud, fonts: straight to network
   const isPage = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
   if (isPage) {
-    // network first: always the newest panel when online, saved copy when offline
-    e.respondWith(fetch(e.request).then(r => {
+    // network first: always the newest panel when online, saved copy when offline.
+    // no-store skips the phone's HTTP cache (GitHub Pages says max-age=600, which kept old versions for 10 min)
+    e.respondWith(fetch(e.request.url, { cache: 'no-store' }).then(r => {
       const copy = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return r;
     }).catch(() => caches.match('./index.html')));
   } else {
