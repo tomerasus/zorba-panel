@@ -89,6 +89,8 @@ html,body{overflow-x:hidden}
 #alerts{touch-action:none;cursor:grab;user-select:none}
 #alerts.moving{cursor:grabbing;opacity:.92}
 #alerts .grip{margin-left:auto;font-size:18px;color:var(--muted);letter-spacing:0}
+#alerts .aclose{margin-left:auto;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#0b1218;color:var(--fg);font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+#alerts .aclose + .grip{margin-left:6px}
 #alerts .ah{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:15px}
 #alerts ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
 #alerts li{display:flex;gap:8px;align-items:baseline;font-size:14px;line-height:1.3}
@@ -658,6 +660,7 @@ function loadAlertSettings(){const saved=store.get('alerts',{});
     return [a.k,{on:s.on!==false, v:a.v==null?undefined:(Number.isFinite(v)?Math.min(a.max,Math.max(a.min,v)):a.v)}];}));}
 loadAlertSettings();
 const acked=new Set();      // alerts silenced by the user; cleared when the condition goes away
+const closed=new Set();     // silenced alerts whose card was closed with ✕; cleared when the condition goes away
 let lastRing=0, audio=null, audioReady=false;
 function currentAlerts(){
   const out=[], d=id=>S.devices[id]||{}, on=k=>AS[k].on, lim=k=>AS[k].v;
@@ -701,14 +704,17 @@ document.addEventListener('change',e=>{
 function renderAlerts(){
   const list=currentAlerts(), box=$('#alerts'), ids=new Set(list.map(a=>a.id));
   for(const k of [...acked]) if(!ids.has(k)) acked.delete(k);       // cleared → can ring again next time
+  for(const k of [...closed]) if(!ids.has(k)) closed.delete(k);     // cleared → the card can show again next time
   const unacked=list.filter(a=>!acked.has(a.id));
-  box.hidden=!list.length; if(!list.length){box.classList.remove('ringing');return;}
+  const show=list.length&&list.some(a=>!closed.has(a.id));          // closed with ✕: hidden until a new alert appears
+  box.hidden=!show; if(!show){box.classList.remove('ringing');return;}
   const moving=box.classList.contains('moving');
   box.className=list.some(a=>a.lvl==='bad')?'':'warn'; box.classList.toggle('ringing',unacked.length>0); if(moving) box.classList.add('moving');
   placeAlerts();
-  box.innerHTML=`<div class="ah">🔔 Alert<span class="grip" title="Drag to move">⠿</span></div><ul>${list.map(a=>`<li class="${a.lvl}"><i></i>${esc(a.text)}</li>`).join('')}</ul>
+  box.innerHTML=`<div class="ah">🔔 Alert${unacked.length?'':'<button type="button" class="aclose" id="alertClose" aria-label="Close alert" title="Close (comes back if a new alert appears)">✕</button>'}<span class="grip" title="Drag to move">⠿</span></div><ul>${list.map(a=>`<li class="${a.lvl}"><i></i>${esc(a.text)}</li>`).join('')}</ul>
     <div class="abtns"><span class="snote">${unacked.length?(!AS.bell.on?'Bell is off in ⚙ settings':audioReady?'Bell rings every 30 s':'Tap the screen once to allow the bell sound'):'Silenced'}</span>${unacked.length?'<button class="btn primary" id="silenceBtn">Silence</button>':''}</div>`;
   const sb=$('#silenceBtn'); if(sb) sb.onclick=()=>{list.forEach(a=>acked.add(a.id)); renderAlerts();};
+  const cb=$('#alertClose'); if(cb) cb.onclick=()=>{list.forEach(a=>closed.add(a.id)); renderAlerts();};
   if(unacked.length&&Date.now()-lastRing>30e3){lastRing=Date.now(); ringBell();}
 }
 // ---- the alert card can be dragged anywhere over the boat; its spot is remembered on this phone ----
@@ -931,7 +937,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-16.5';
+const BUILD='2026-11-16.6';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
