@@ -366,12 +366,12 @@ const ITEMS=[
  {key:'bilge',type:'bilge',id:ID.bilge,label:'Bilge',x:27,y:83},
  {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:70,y:91},
 ];
-// Built-in arrangement = the owner's S26 (copied 2026-11-15 via ⚙ → Layout → Copy). Overrides the x,y above.
-const DEFAULT_LAYOUT={"steam":{"x":46.7,"y":27.5},"mode":{"x":47.5,"y":35.8},"tankFwd":{"x":84.9,"y":19.9},"running":{"x":47.2,"y":9.8},"anchor":{"x":47.3,"y":42},"deckBow":{"x":47.2,"y":20.2},"master":{"x":36.9,"y":82.1},"mainCabin":{"x":46.6,"y":52.7},"fridge":{"x":28.5,"y":64.5},"flood":{"x":45.1,"y":48.3},"engine":{"x":47,"y":57.7},"heater":{"x":30.2,"y":74.9},"fan":{"x":70,"y":70},"inverter":{"x":66.8,"y":62.6},"bilge":{"x":79.6,"y":13.6},"deckStern":{"x":51.6,"y":86.7}};
+// Built-in arrangement = the owner's S26 (copied 2026-11-16 via ⚙ → Layout → Copy). Overrides the x,y above.
+const DEFAULT_LAYOUT={"steam":{"x":46.7,"y":27.5},"mode":{"x":47.5,"y":35.8},"tankFwd":{"x":84.9,"y":19.9},"tankAft":{"x":85.3,"y":31.1},"running":{"x":47.2,"y":9.8},"anchor":{"x":47.3,"y":42},"deckBow":{"x":47.2,"y":20.2},"master":{"x":36.9,"y":82.1},"mainCabin":{"x":46.6,"y":52.7},"fridge":{"x":28.5,"y":64.5},"flood":{"x":45.1,"y":48.3},"engine":{"x":47,"y":57.7},"heater":{"x":30.2,"y":74.9},"fan":{"x":70,"y":70},"inverter":{"x":66.8,"y":62.6},"bilge":{"x":82.7,"y":11.5},"deckStern":{"x":51.6,"y":86.7}};
 ITEMS.forEach(it=>{const p=DEFAULT_LAYOUT[it.key]; if(p){it.x=p.x; it.y=p.y;}});
 // Where each phone keeps its own arrangement. Changing this key makes every phone drop its saved
-// arrangement once and use the built-in one (done 2026-11-15 to give Limor's phone the S26 layout).
-const LAYOUT_KEY='layout-bowup-2';
+// arrangement once and use the built-in one (2026-11-15 and again 2026-11-16, to give every phone the S26 layout).
+const LAYOUT_KEY='layout-bowup-3';
 // solar chargers, shown in the panel's bottom corners beside the stern (idx = order in the Shelly "Mppt" script)
 const SOLAR=[
  {side:'L',idx:2,label:'Deck port'},{side:'L',idx:0,label:'Arch port'},
@@ -573,7 +573,7 @@ function render(){if(R) S=deaden(R); if(!$('#setup').hidden) renderTankCal(); re
 const store={get(k,d){try{const v=localStorage.getItem('zorba.'+k);return v?JSON.parse(v):d}catch(e){return d}},
   set(k,v){try{localStorage.setItem('zorba.'+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem('zorba.'+k)}catch(e){}}};
 let CFG=store.get('cfg',null);
-layout=store.get(LAYOUT_KEY,{}); store.del('layout-bowup');   // old key: arrangements saved before the new default
+layout=store.get(LAYOUT_KEY,{}); ['layout-bowup','layout-bowup-2'].forEach(k=>store.del(k));   // old keys: arrangements saved before the new default
 
 // ---- Shelly Cloud, called directly from this page (one request at a time, ~1/s limit) ----
 let queue=Promise.resolve();
@@ -924,7 +924,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-16.2';
+const BUILD='2026-11-16.3';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
