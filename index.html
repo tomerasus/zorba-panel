@@ -770,7 +770,8 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
 // 2026-11-15: owner: FWD 0.47 V = 7/8. 2026-11-16: owner: BACK = 8/8 at 0.06 V (note: ~0 V is also what an
 // open wire reads — confirm with a second point)
-const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7}],aft:[{v:0.06,n:8}]};
+// 2026-11-16: owner: FWD 6/8 at 0.72 V.
+const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7},{v:0.72,n:6}],aft:[{v:0.06,n:8}]};
 // Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
 // relay off = FWD tank, relay on = AFT (back) tank.
 const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
@@ -924,7 +925,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-16.3';
+const BUILD='2026-11-16.4';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
