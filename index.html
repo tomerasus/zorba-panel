@@ -577,10 +577,12 @@ layout=store.get(LAYOUT_KEY,{}); ['layout-bowup','layout-bowup-2'].forEach(k=>st
 
 // ---- Shelly Cloud, called directly from this page (one request at a time, ~1/s limit) ----
 let queue=Promise.resolve();
-function cloud(path,params={}){
+// cfg: optional {server,key} to use instead of the saved one (the Connect check tests what was typed)
+function cloud(path,params={},cfg){
   const run=async()=>{
-    if(!CFG) throw new Error('No Shelly key on this phone');
-    const r=await fetch(CFG.server+path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({...params,auth_key:CFG.key})});
+    const c=cfg||CFG;
+    if(!c) throw new Error('No Shelly key on this phone');
+    const r=await fetch(c.server+path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({...params,auth_key:c.key})});
     const j=await r.json().catch(()=>({isok:false,errors:{http:r.status}}));
     await new Promise(res=>setTimeout(res,1100));
     if(!j.isok) throw new Error(j.errors?.wrong_auth_key!==undefined||r.status===401?'Wrong key or server':JSON.stringify(j.errors||r.status));
@@ -883,9 +885,13 @@ $('#setupForm').addEventListener('submit',async e=>{
   const server=$('#cfgServer').value.trim().replace(/\/+$/,''), key=$('#cfgKey').value.trim()||CFG?.key;
   if(!/^https:\/\/[a-z0-9-]+\.shelly\.cloud$/i.test(server)){$('#cfgMsg').textContent='The server should look like https://shelly-XX-eu.shelly.cloud';return}
   if(!key){$('#cfgMsg').textContent='Paste the cloud key.';return}
-  const old=CFG; CFG={server,key}; namesAt=0; $('#cfgMsg').textContent='Checking…';
-  try{await cloud('/device/all_status'); store.set('cfg',CFG); $('#cfgMsg').textContent=''; $('#setup').hidden=true; refresh();}
-  catch(err){CFG=old; $('#cfgMsg').textContent='Could not connect: '+err.message;}
+  const btn=e.submitter||$('#setupForm button[type=submit]'); if(btn.disabled) return;   // one check at a time
+  btn.disabled=true; $('#cfgMsg').textContent='Checking…';
+  const test={server,key};
+  try{ await cloud('/device/all_status',{},test);   // test exactly what was typed; the saved key is untouched until it works
+    CFG=test; store.set('cfg',CFG); namesAt=0; $('#cfgMsg').textContent=''; $('#setup').hidden=true; refresh(); }
+  catch(err){ $('#cfgMsg').textContent='Could not connect: '+(navigator.onLine?err.message:'no internet on this device'); }
+  finally{ btn.disabled=false; }
 });
 start();
 
@@ -925,7 +931,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-16.4';
+const BUILD='2026-11-16.5';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
