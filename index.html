@@ -172,6 +172,8 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tank .waves{position:absolute;left:50%;top:60%;width:20px;height:14px;transform:translate(-50%,-50%);color:#c9d1d6}
 .tank .tq{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font:600 11px var(--f-mono);color:var(--faint)}
 .tank.off .dial{opacity:.45}
+.tank.idle .dial{opacity:.5}                 /* tank not connected now: last reading */
+.tank.idle .tlabel{opacity:.7;border-style:dashed}
 /* deck-plan items (lights, sensors, heater, fan, washing machine, bilge): yellow text; state colours (Dry, alarms) keep theirs */
 #items .tag,#items .tag b{color:var(--q-yellow)}
 #items .tag.alarm,#items .tag.alarm b{color:var(--bad)}
@@ -264,7 +266,7 @@ tr:last-child td{border-bottom:0}
     </div>
     <div class="alertset">
       <h2 id="tankHead">Water tank</h2>
-      <p style="margin:0;color:var(--muted)">Calibrates the tank that is connected now (switch FWD/AFT on the gauge label). Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
+      <p style="margin:0;color:var(--muted)">Calibrates the tank that is connected now (tap FWD or BACK above a gauge to connect it). Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
       <div class="hint" id="tankLive"></div>
       <div id="tankBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="hint" id="tankPts"></div>
@@ -345,6 +347,8 @@ const ITEMS=[
  {key:'mode',type:'mode',label:'Lights mode',x:50,y:13},
  // forward water tank: KUS-style 8-light gauge, driven by the sender-wire voltage (Shelly + Add-on voltmeter)
  {key:'tankFwd',type:'tank',id:ID.tankFwd,label:'FWD',tank:'fwd',x:30,y:40},
+ // back (aft) water tank: same Add-on, read when "Switch to back water tank" is on; otherwise shows its last reading
+ {key:'tankAft',type:'tank',id:ID.tankFwd,label:'BACK',tank:'aft',x:84.9,y:32},
  // running lights (port red, starboard green, stern white): their own Shelly "Running lights"
  {key:'running',type:'running',id:ID.running,label:'Running lights',x:50,y:9},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true, below:true},
@@ -763,7 +767,9 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // ---- water tanks: sender-wire volts → number of lit lights (0–8) on a KUS-style gauge ----
 // Calibration = points {v: sender volts, n: lights the real gauge showed}. Built-in points below; each
 // phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
-const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7}],aft:[]};   // 2026-11-15: owner: FWD 0.47 V = 7/8; AFT not calibrated yet
+// 2026-11-15: owner: FWD 0.47 V = 7/8. 2026-11-16: owner: BACK = 8/8 at 0.06 V (note: ~0 V is also what an
+// open wire reads — confirm with a second point)
+const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7}],aft:[{v:0.06,n:8}]};
 // Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
 // relay off = FWD tank, relay on = AFT (back) tank.
 const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
@@ -771,7 +777,7 @@ const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
 let tankSeen=null, tankSince=0;
 function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
-const TANK_NAME={fwd:'FWD',aft:'AFT'};
+const TANK_NAME={fwd:'FWD',aft:'BACK'};
 const tankCal=k=>store.get('tankcal-'+k,null)||TANK_CAL_DEFAULT[k]||[];
 function tankLights(k,v){
   if(v==null) return null;
@@ -787,14 +793,17 @@ function tankLights(k,v){
 // so the first red and the last green are at the same height (compass degrees, evenly spaced)
 const TANK_ANG=Array.from({length:8},(_,i)=>(235+i*250/7)%360);
 const WAVES='<svg class="waves" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 4c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+// each tank's gauge: live while its tank is connected, otherwise its last reading (kept on this phone), dimmed
 function tankHtml(it){
-  const k=tankSel(), d=dev(it.id), switching=tankSettling(), n=switching?null:tankLights(k,d.v), off=d.v==null||switching;
-  it={...it,label:TANK_NAME[k]};
-  const leds=TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
-    return `<i class="tl ${i<2?'red':'green'} ${n!=null&&i<n?'on':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join('');
-  const tip=`${esc(it.label)} water tank · ${off?'no data':'sender '+fmt(d.v,2)+' V'} · ${n==null?(off?'':'not calibrated here yet'):n+' of 8 lights'}`;
-  return `<div class="tank ${off?'off':''}" title="${tip}"><button type="button" class="tlabel" data-tanksel title="Tap to switch between FWD and AFT tank">${esc(it.label)} ⇄</button><div class="dial">${leds}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
+  const k=it.tank, d=dev(it.id), live=tankSel()===k&&!tankSettling();
+  if(live&&d.v!=null){const l=store.get('tanklast-'+k,null); if(!l||l.v!==d.v||Date.now()-l.t>60e3) store.set('tanklast-'+k,{v:d.v,t:Date.now()});}
+  const last=live?null:store.get('tanklast-'+k,null), v=live?d.v:(last?last.v:null);
+  const n=tankLights(k,v), off=v==null;
+  const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'}`;
+  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" title="${tip}"><button type="button" class="tlabel" data-tanksel="${k}" title="${live?'Connected':'Tap to connect this tank'}">${TANK_NAME[k]}</button><div class="dial">${tankLeds(n)}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
 }
+function tankLeds(n){ return TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
+    return `<i class="tl ${i<2?'red':'green'} ${n!=null&&i<n?'on':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join(''); }
 // light mode from the two mode relays: 'anchor' | 'sail' | 'off' (if both are somehow on, anchor wins on screen;
 // the Shelly scripts switch the other one off within seconds)
 function lightMode(){ return isOn(ID.bilge)?'anchor':isOn(ID.tankFwd)?'sail':'off'; }
@@ -880,8 +889,9 @@ start();
 
 // tank label: switch the Add-on between FWD and AFT tank
 document.addEventListener('click',async e=>{
-  if(!e.target.closest('[data-tanksel]')||arranging||pending[ID.tankSel]) return;
-  const want=!isOn(ID.tankSel); pending[ID.tankSel]={on:want,t:Date.now()}; render();
+  const b=e.target.closest('[data-tanksel]'); if(!b||arranging||pending[ID.tankSel]) return;
+  const want=b.dataset.tanksel==='aft'; if(isOn(ID.tankSel)===want) return;   // that tank is already connected
+  pending[ID.tankSel]={on:want,t:Date.now()}; render();
   try{ await cloud('/device/relay/control',{id:ID.tankSel,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500); }
   catch(err){ delete pending[ID.tankSel]; toast('Could not switch tank: '+err.message); render(); }
 });
@@ -912,7 +922,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.18';
+const BUILD='2026-11-16.1';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
