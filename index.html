@@ -163,7 +163,7 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .mbtn.busy{animation:pend 1s ease-in-out infinite}
 /* water tank gauge (like the KUS on board): 64 px dial = 4× a running-light dot, 8 lights: 2 red + 6 green */
 .tank{display:grid;justify-items:center;gap:3px}
-.tank .tlabel{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--q-yellow);text-shadow:0 1px 2px #000}
+.tank .tlabel{font:600 11px var(--f-mono,inherit);letter-spacing:.08em;color:var(--q-yellow);text-shadow:0 1px 2px #000;background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:5px;padding:1px 6px;cursor:pointer}
 .tank .dial{position:relative;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2a2f33,#0c0f11 70%);
   border:5px solid #15191c;box-shadow:0 2px 6px #000a,inset 0 0 6px #000}
 .tank .tl{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;border:1.5px solid #6d757b;background:#1b1f22}
@@ -263,8 +263,8 @@ tr:last-child td{border-bottom:0}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="alertReset">Reset to defaults</button><span class="hint" id="alertMsg"></span></div>
     </div>
     <div class="alertset">
-      <h2>FWD water tank</h2>
-      <p style="margin:0;color:var(--muted)">Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
+      <h2 id="tankHead">Water tank</h2>
+      <p style="margin:0;color:var(--muted)">Calibrates the tank that is connected now (switch FWD/AFT on the gauge label). Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
       <div class="hint" id="tankLive"></div>
       <div id="tankBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="hint" id="tankPts"></div>
@@ -332,7 +332,7 @@ const SAILBOAT='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 2.5v13
 const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
 
 // Shelly device ids on Zorba
-const ID={tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
+const ID={tankSel:'acebe6f5d2a0',tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c',engine:'XB211299198447892'};
 const MAST={x:47,y:40.5};
 
@@ -763,7 +763,15 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // ---- water tanks: sender-wire volts → number of lit lights (0–8) on a KUS-style gauge ----
 // Calibration = points {v: sender volts, n: lights the real gauge showed}. Built-in points below; each
 // phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
-const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7}]};   // 2026-11-15: owner: 0.47 V = 7/8
+const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7}],aft:[]};   // 2026-11-15: owner: FWD 0.47 V = 7/8; AFT not calibrated yet
+// Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
+// relay off = FWD tank, relay on = AFT (back) tank.
+const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
+// after a switch, give the Add-on ~10 s to report the newly connected tank before showing lights again
+let tankSeen=null, tankSince=0;
+function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
+  return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
+const TANK_NAME={fwd:'FWD',aft:'AFT'};
 const tankCal=k=>store.get('tankcal-'+k,null)||TANK_CAL_DEFAULT[k]||[];
 function tankLights(k,v){
   if(v==null) return null;
@@ -780,11 +788,12 @@ function tankLights(k,v){
 const TANK_ANG=Array.from({length:8},(_,i)=>(235+i*250/7)%360);
 const WAVES='<svg class="waves" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 4c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 function tankHtml(it){
-  const d=dev(it.id), n=tankLights(it.tank,d.v), off=d.v==null;
+  const k=tankSel(), d=dev(it.id), switching=tankSettling(), n=switching?null:tankLights(k,d.v), off=d.v==null||switching;
+  it={...it,label:TANK_NAME[k]};
   const leds=TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
     return `<i class="tl ${i<2?'red':'green'} ${n!=null&&i<n?'on':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join('');
   const tip=`${esc(it.label)} water tank · ${off?'no data':'sender '+fmt(d.v,2)+' V'} · ${n==null?(off?'':'not calibrated here yet'):n+' of 8 lights'}`;
-  return `<div class="tank ${off?'off':''}" title="${tip}"><b class="tlabel">${esc(it.label)}</b><div class="dial">${leds}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
+  return `<div class="tank ${off?'off':''}" title="${tip}"><button type="button" class="tlabel" data-tanksel title="Tap to switch between FWD and AFT tank">${esc(it.label)} ⇄</button><div class="dial">${leds}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
 }
 // light mode from the two mode relays: 'anchor' | 'sail' | 'off' (if both are somehow on, anchor wins on screen;
 // the Shelly scripts switch the other one off within seconds)
@@ -869,6 +878,13 @@ $('#setupForm').addEventListener('submit',async e=>{
 });
 start();
 
+// tank label: switch the Add-on between FWD and AFT tank
+document.addEventListener('click',async e=>{
+  if(!e.target.closest('[data-tanksel]')||arranging||pending[ID.tankSel]) return;
+  const want=!isOn(ID.tankSel); pending[ID.tankSel]={on:want,t:Date.now()}; render();
+  try{ await cloud('/device/relay/control',{id:ID.tankSel,channel:'0',turn:want?'on':'off'}); setTimeout(refresh,1500); }
+  catch(err){ delete pending[ID.tankSel]; toast('Could not switch tank: '+err.message); render(); }
+});
 // light mode buttons (⚓ / ⛵ / OFF)
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-mode]'); if(!b||arranging||pending[ID.bilge]||pending[ID.tankFwd]) return;
@@ -896,7 +912,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-15.17';
+const BUILD='2026-11-15.18';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -941,20 +957,21 @@ $('#layoutCopy').onclick=async()=>{
 };
 // ⚙ → FWD water tank calibration
 function renderTankCal(){
-  const v=dev(ID.tankFwd).v, n=tankLights('fwd',v), pts=tankCal('fwd').slice().sort((a,b)=>a.n-b.n);
+  const k=tankSel(), settling=tankSettling(), v=settling?null:dev(ID.tankFwd).v, n=tankLights(k,v), pts=tankCal(k).slice().sort((a,b)=>a.n-b.n);
+  $('#tankHead').textContent=TANK_NAME[k]+' water tank'+(settling?' (switching…)':'');
   $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ZORBA shows ${n==null?'?':n} of 8 lights`;
   $('#tankBtns').innerHTML=[0,1,2,3,4,5,6,7,8].map(k=>`<button class="btn" type="button" data-tankn="${k}" ${v==null?'disabled':''}>${k}</button>`).join('');
   $('#tankPts').textContent='Points: '+(pts.length?pts.map(p=>`${p.n} lights = ${fmt(p.v,2)} V`).join(' · '):'none');
 }
 $('#tankBtns').addEventListener('click',e=>{
-  const b=e.target.closest('[data-tankn]'); if(!b) return; const v=dev(ID.tankFwd).v; if(v==null) return;
-  const n=+b.dataset.tankn, pts=tankCal('fwd').filter(p=>p.n!==n&&Math.abs(p.v-v)>0.02);
-  pts.push({v:+v.toFixed(2),n}); store.set('tankcal-fwd',pts); renderTankCal(); render();
-  $('#tankMsg').textContent=`Saved: ${n} lights = ${fmt(v,2)} V`;
+  const b=e.target.closest('[data-tankn]'); if(!b||tankSettling()) return; const v=dev(ID.tankFwd).v; if(v==null) return;
+  const k=tankSel(), n=+b.dataset.tankn, pts=tankCal(k).filter(p=>p.n!==n&&Math.abs(p.v-v)>0.02);
+  pts.push({v:+v.toFixed(2),n}); store.set('tankcal-'+k,pts); renderTankCal(); render();
+  $('#tankMsg').textContent=`${TANK_NAME[k]} saved: ${n} lights = ${fmt(v,2)} V`;
 });
-$('#tankReset').onclick=()=>{store.del('tankcal-fwd'); renderTankCal(); render(); $('#tankMsg').textContent='Built-in points restored on this phone.';};
+$('#tankReset').onclick=()=>{const k=tankSel(); store.del('tankcal-'+k); renderTankCal(); render(); $('#tankMsg').textContent=TANK_NAME[k]+': built-in points restored on this phone.';};
 $('#tankCopy').onclick=async()=>{
-  const txt='ZORBA-TANK fwd '+JSON.stringify(tankCal('fwd')); const ta=$('#tankText'); ta.value=txt; ta.hidden=false; ta.select();
+  const txt='ZORBA-TANK '+JSON.stringify({fwd:tankCal('fwd'),aft:tankCal('aft')}); const ta=$('#tankText'); ta.value=txt; ta.hidden=false; ta.select();
   $('#tankMsg').textContent='Select the text below and copy it.';
   try{await navigator.clipboard.writeText(txt); $('#tankMsg').textContent='Copied. Paste it to Shilla.';}catch(e){}
 };
