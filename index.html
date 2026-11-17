@@ -912,18 +912,25 @@ const LOCAL_IP_DEFAULT={[ID.deckStern]:'192.168.1.21',[ID.fridge]:'192.168.1.139
 let localIp={...LOCAL_IP_DEFAULT,...store.get('localip',{})};
 let link='cloud', lastCloud=null, cloudTryAt=0;   // link: 'local' (boat Wi-Fi) or 'cloud'
 const utcStr=t=>new Date(t).toISOString().slice(0,19).replace('T',' ');
-// read every mains Shelly directly; returns {id: status} for those that answered
+// read every mains Shelly directly; returns {id: status} ({} when none answers). A Shelly that misses a round keeps its last good
+// reading (and its old time) instead of vanishing — the stern-light Shelly runs the BMV/solar scripts and Bluetooth
+// scanning and often takes 1–3 s or misses a round; the normal freshness rules still catch a real outage.
+const lastLocal={};
 async function localStatuses(){
-  const out={}, now=utcStr(Date.now());
+  const out={}; let fresh=0;   // fresh: how many Shellys really answered this round (0 = not on the boat Wi-Fi)
   await Promise.all(Object.entries(localIp).map(async([id,ip])=>{
-    try{ const s=await localRpc(ip,'Shelly.GetStatus',{},2500);
-      // Shelly.GetStatus leaves out "virtual" components — the battery (BMV) and solar values the stern-light
-      // Shelly's scripts write into number:200…204, text:205, text:210 — so fetch those with their values too
-      if(id===ID.deckStern){ const c=await localRpc(ip,'Shelly.GetComponents',{dynamic_only:true,include:['status']},3000);
-        for(const x of (c.components||[])) if(x.status) s[x.key]=x.status; }
-      s._updated=now; s.cloud={...(s.cloud||{}),connected:true}; out[id]=s; }catch(e){}
+    try{ let s;
+      if(id===ID.deckStern){
+        // lighter than the full status: its light switch + the virtual components (BMV number:200…204, text:205,
+        // solar/alternator text:210) — Shelly.GetStatus leaves those out, so they must be asked for separately
+        s={'switch:0':await localRpc(ip,'Switch.GetStatus',{id:0},6000)};
+        const c=await localRpc(ip,'Shelly.GetComponents',{dynamic_only:true,include:['status']},6000);
+        for(const x of (c.components||[])) if(x.status) s[x.key]=x.status;
+      } else s=await localRpc(ip,'Shelly.GetStatus',{},3000);
+      s._updated=utcStr(Date.now()); s.cloud={...(s.cloud||{}),connected:true}; lastLocal[id]=s; out[id]=s; fresh++;
+    }catch(e){ if(lastLocal[id]) out[id]=lastLocal[id]; }
   }));
-  return out;
+  return fresh?out:{};      // nobody answered: away from the boat → the cloud takes over
 }
 // switch a relay: directly on the boat Wi-Fi when that link is up, otherwise through Shelly Cloud
 async function setRelay(id,on){
@@ -1028,7 +1035,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.13';
+const BUILD='2026-11-17.14';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
