@@ -798,6 +798,7 @@ let tankSeen=null, tankSince=0;
 function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
+const TANK_LABEL={fwd:'FWD - 15gal x 8',aft:'BACK'};   // text above each gauge (FWD: 120 gal tank, each light = 15 gal)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
 const TANKCAL='tankcal2-';
@@ -830,7 +831,7 @@ function tankHtml(it){
   const last=live?null:store.get('tanklast-'+k,null), v=live?d.v:(last?last.v:null);
   const n=tankLights(k,v), off=v==null;
   const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'}`;
-  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks"><b class="tlabel">${TANK_NAME[k]}</b><div class="dial">${tankLeds(n)}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
+  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks"><b class="tlabel">${TANK_LABEL[k]}</b><div class="dial">${tankLeds(n)}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
 }
 // like the KUS gauge on board: empty (0/8) = the first red light flashing; 1/8 = first red solid; …; 8/8 = all lit
 function tankLeds(n){ return TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
@@ -959,7 +960,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.5';
+const BUILD='2026-11-17.6';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
