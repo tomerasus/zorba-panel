@@ -801,7 +801,7 @@ let tankSeen=null, tankSince=0;
 function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
-const TANK_LABEL={fwd:'FWD 120gal',aft:'BACK'};   // text above each gauge
+const TANK_LABEL={fwd:'FWD 120 gal',aft:'BACK'};   // text above each gauge
 const TANK_STEP={fwd:'15'};                       // small number beside the first red light: gallons per light (FWD only)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
@@ -964,7 +964,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.8';
+const BUILD='2026-11-17.9';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
