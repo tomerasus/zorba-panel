@@ -782,8 +782,10 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // open wire reads — confirm with a second point)
 // FWD: measured 2026-11-17 by timing a steady fill of the 120 gal tank from empty (22:10:45) to full (22:57:18):
 // level ∝ time, voltage read at each eighth. The sender moves in steps and reaches its top step (0.23–0.24 V) at
-// ~79 % (~95 gal), so 0.24 V = full. The first ~7 gal do not move it. Data: shelly\tank-fill-2026-11-17.csv.
-const TANK_CAL_DEFAULT={fwd:[{v:2.07,n:0},{v:1.45,n:1},{v:1.08,n:2},{v:0.86,n:3},{v:0.68,n:4},{v:0.44,n:5},{v:0.28,n:6},{v:0.24,n:8}],
+// ~79 % (~95 gal) and stays there to full, so 8/8 cannot be measured: 0.24 V shows 7 lights ("7/8 or more", owner's
+// decision 2026-11-17; the boat's KUS gauge is uncalibrated and not used). The first ~7 gal do not move it.
+// Data: shelly\tank-fill-2026-11-17.csv.
+const TANK_CAL_DEFAULT={fwd:[{v:2.07,n:0},{v:1.45,n:1},{v:1.08,n:2},{v:0.86,n:3},{v:0.68,n:4},{v:0.44,n:5},{v:0.28,n:6},{v:0.24,n:7}],
   aft:[{v:0.06,n:8}]};
 // Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
 // relay off = FWD tank, relay on = AFT (back) tank.
@@ -948,7 +950,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.2';
+const BUILD='2026-11-17.3';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
