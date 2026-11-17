@@ -177,7 +177,8 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tank .waves{position:absolute;left:50%;top:60%;width:20px;height:14px;transform:translate(-50%,-50%);color:#c9d1d6}
 .tank .tq{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font:600 11px var(--f-mono);color:var(--faint)}
 /* "15" just outside the dial, beside the first red light (which sits at the lower left) */
-.tank .tstep{position:absolute;left:-15px;top:76%;transform:translateY(-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000}
+.tank .tlabel{white-space:nowrap}
+.tank .tstep{position:absolute;left:-12px;top:76%;transform:translateY(-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000}
 .tank.off .dial{opacity:.45}
 .tank.idle .dial{opacity:.5}                 /* tank not connected now: last reading */
 .tank.idle .tlabel{opacity:.7;border-style:dashed}
@@ -963,7 +964,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.7';
+const BUILD='2026-11-17.8';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
