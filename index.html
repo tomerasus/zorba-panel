@@ -780,8 +780,11 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
 // 2026-11-15: owner: FWD 0.47 V = 7/8. 2026-11-16: owner: BACK = 8/8 at 0.06 V (note: ~0 V is also what an
 // open wire reads — confirm with a second point)
-// 2026-11-16: owner: FWD 6/8 at 0.72 V. 2026-11-17: FWD emptied (pump drew air) = 2.07 V → 0 (first red flashing).
-const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7},{v:0.72,n:6},{v:2.07,n:0}],aft:[{v:0.06,n:8}]};
+// FWD: measured 2026-11-17 by timing a steady fill of the 120 gal tank from empty (22:10:45) to full (22:57:18):
+// level ∝ time, voltage read at each eighth. The sender moves in steps and reaches its top step (0.23–0.24 V) at
+// ~79 % (~95 gal), so 0.24 V = full. The first ~7 gal do not move it. Data: shelly\tank-fill-2026-11-17.csv.
+const TANK_CAL_DEFAULT={fwd:[{v:2.07,n:0},{v:1.45,n:1},{v:1.08,n:2},{v:0.86,n:3},{v:0.68,n:4},{v:0.44,n:5},{v:0.28,n:6},{v:0.24,n:8}],
+  aft:[{v:0.06,n:8}]};
 // Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
 // relay off = FWD tank, relay on = AFT (back) tank.
 const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
@@ -790,7 +793,11 @@ let tankSeen=null, tankSince=0;
 function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
-const tankCal=k=>store.get('tankcal-'+k,null)||TANK_CAL_DEFAULT[k]||[];
+// per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
+// tapped before the fill calibration and uses the built-in ones
+const TANKCAL='tankcal2-';
+['fwd','aft'].forEach(k=>store.del('tankcal-'+k));
+const tankCal=k=>store.get(TANKCAL+k,null)||TANK_CAL_DEFAULT[k]||[];
 function tankLights(k,v){
   if(v==null) return null;
   const p=tankCal(k).slice().sort((a,b)=>a.v-b.v);
@@ -941,7 +948,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.1';
+const BUILD='2026-11-17.2';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -995,10 +1002,10 @@ function renderTankCal(){
 $('#tankBtns').addEventListener('click',e=>{
   const b=e.target.closest('[data-tankn]'); if(!b||tankSettling()) return; const v=dev(ID.tankFwd).v; if(v==null) return;
   const k=tankSel(), n=+b.dataset.tankn, pts=tankCal(k).filter(p=>p.n!==n&&Math.abs(p.v-v)>0.02);
-  pts.push({v:+v.toFixed(2),n}); store.set('tankcal-'+k,pts); renderTankCal(); render();
+  pts.push({v:+v.toFixed(2),n}); store.set(TANKCAL+k,pts); renderTankCal(); render();
   $('#tankMsg').textContent=`${TANK_NAME[k]} saved: ${n} lights = ${fmt(v,2)} V`;
 });
-$('#tankReset').onclick=()=>{const k=tankSel(); store.del('tankcal-'+k); renderTankCal(); render(); $('#tankMsg').textContent=TANK_NAME[k]+': built-in points restored on this phone.';};
+$('#tankReset').onclick=()=>{const k=tankSel(); store.del(TANKCAL+k); renderTankCal(); render(); $('#tankMsg').textContent=TANK_NAME[k]+': built-in points restored on this phone.';};
 $('#tankCopy').onclick=async()=>{
   const txt='ZORBA-TANK '+JSON.stringify({fwd:tankCal('fwd'),aft:tankCal('aft')}); const ta=$('#tankText'); ta.value=txt; ta.hidden=false; ta.select();
   $('#tankMsg').textContent='Select the text below and copy it.';
