@@ -1013,6 +1013,7 @@ document.addEventListener('click',async e=>{
 // doesn't report as an installed app)
 $('#exitBtn').hidden=false;
 $('#exitBtn').onclick=()=>{
+  if(window.ZorbaNative&&window.ZorbaNative.exit){ window.ZorbaNative.exit(); return; }   // inside the ZORBA app
   window.close();
   // if the phone did not let the app close itself, say how to close it
   setTimeout(()=>{ if(!document.hidden) toast("Android didn't let the app close itself: swipe back from the screen edge to close ZORBA"); },400);
@@ -1022,7 +1023,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.11';
+const BUILD='2026-11-17.12';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
