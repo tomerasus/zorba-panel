@@ -607,7 +607,10 @@ function shape(st){
     if(s['flood:0']){d.kind='flood';d.flood=!!s['flood:0'].alarm;}
     // tank Shelly: Add-on voltmeter. Always use the RAW reading × 3 (20k/10k divider) = sender-wire volts; the
     // Shelly's own custom formula (xvoltage) is left free for the owner to show % in the Shelly app.
-    if(s['voltmeter:100']){d.kind='tank'; const vm=s['voltmeter:100']; d.v=vm.voltage!=null?+(vm.voltage*3).toFixed(2):null; d.xv=vm.xvoltage??null;}
+    // The Shelly's own x*3 value (xvoltage) is finer than raw×3 (raw is rounded to 0.01 V = 0.03 V on the sender) and
+    // the fill calibration was measured with it — use it while it agrees with raw×3 (i.e. the formula is still x*3).
+    if(s['voltmeter:100']){d.kind='tank'; const vm=s['voltmeter:100'], r3=vm.voltage!=null?vm.voltage*3:null;
+      d.v=r3==null?null:+((vm.xvoltage!=null&&Math.abs(vm.xvoltage-r3)<=0.05)?vm.xvoltage:r3).toFixed(2); d.xv=vm.xvoltage??null;}
     if(id===ID.bilge){d.kind='bilge';d.input=typeof s['input:0']?.state==='boolean'?s['input:0'].state:null;}
     if(s['devicepower:0']?.battery) d.battery=s['devicepower:0'].battery.percent??null;
     devices[id]=d;
@@ -800,15 +803,21 @@ const TANK_NAME={fwd:'FWD',aft:'BACK'};
 const TANKCAL='tankcal2-';
 ['fwd','aft'].forEach(k=>store.del('tankcal-'+k));
 const tankCal=k=>store.get(TANKCAL+k,null)||TANK_CAL_DEFAULT[k]||[];
+// Exact switch voltages (owner's rule, 2026-11-17): light n is on when the sender is AT OR BELOW TANK_THR[k][n-1]
+// and off as soon as it is above. Values = the timed-fill voltage at n/8. Light 8 is never lit (8/8 can't be
+// measured: the sender is at its top from ~95 gal to full). Above the 1st value = empty = first red flashing.
+const TANK_THR={fwd:[1.45,1.08,0.86,0.68,0.44,0.28,0.24]};   // FWD: final, from the fill of 2026-11-17
 function tankLights(k,v){
   if(v==null) return null;
+  const thr=TANK_THR[k];
+  if(thr) return thr.filter(x=>v<=x+1e-9).length;              // 0…7
   const p=tankCal(k).slice().sort((a,b)=>a.v-b.v);
   if(!p.length) return null;
-  if(p.length===1) return Math.abs(v-p[0].v)<=0.3?p[0].n:null;   // one point: only trust it close by
+  if(p.length===1) return Math.abs(v-p[0].v)<=0.3?Math.min(7,p[0].n):null;   // one point: only trust it close by; never 8
   let a=p[0],b=p[1];
   for(let i=1;i<p.length;i++){a=p[i-1];b=p[i]; if(v<=b.v) break;}
   const n=b.v===a.v?a.n:a.n+(b.n-a.n)*(v-a.v)/(b.v-a.v);
-  return Math.max(0,Math.min(8,Math.round(n)));
+  return Math.max(0,Math.min(7,Math.round(n)));                // never 8, same rule as FWD
 }
 // lights sit on a symmetric arc like the real gauge: lower left (235°), over the top, to lower right (125°),
 // so the first red and the last green are at the same height (compass degrees, evenly spaced)
@@ -950,7 +959,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.3';
+const BUILD='2026-11-17.4';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -997,6 +1006,12 @@ $('#layoutCopy').onclick=async()=>{
 function renderTankCal(){
   const k=tankSel(), settling=tankSettling(), v=settling?null:dev(ID.tankFwd).v, n=tankLights(k,v), pts=tankCal(k).slice().sort((a,b)=>a.n-b.n);
   $('#tankHead').textContent=TANK_NAME[k]+' water tank'+(settling?' (switching…)':'');
+  if(TANK_THR[k]){   // calibrated by a timed fill: fixed switch voltages, nothing to tap
+    $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ${n} of 8 lights`;
+    $('#tankBtns').innerHTML='';
+    $('#tankPts').textContent='Calibrated (timed fill). Light n on at or below: '+TANK_THR[k].map((x,i)=>`${i+1}: ${x.toFixed(2)} V`).join(' · ')+' · light 8 never lit';
+    return;
+  }
   $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ZORBA shows ${n==null?'?':n} of 8 lights`;
   $('#tankBtns').innerHTML=[0,1,2,3,4,5,6,7,8].map(k=>`<button class="btn" type="button" data-tankn="${k}" ${v==null?'disabled':''}>${k}</button>`).join('');
   $('#tankPts').textContent='Points: '+(pts.length?pts.map(p=>`${p.n} lights = ${fmt(p.v,2)} V`).join(' · '):'none');
