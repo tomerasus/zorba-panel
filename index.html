@@ -171,6 +171,8 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   border:5px solid #15191c;box-shadow:0 2px 6px #000a,inset 0 0 6px #000}
 .tank .tl{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;border:1.5px solid #6d757b;background:#1b1f22}
 .tank .tl.red.on{background:#ff3a5c;border-color:#ffb3c0;box-shadow:0 0 5px 2px #ff3a5c}
+.tank .tl.blink{animation:tankEmpty 1s steps(1,end) infinite}
+@keyframes tankEmpty{50%{background:#1b1f22;border-color:#6d757b;box-shadow:none}}
 .tank .tl.green.on{background:#9dff3a;border-color:#e2ffc4;box-shadow:0 0 5px 2px #8be62e}
 .tank .waves{position:absolute;left:50%;top:60%;width:20px;height:14px;transform:translate(-50%,-50%);color:#c9d1d6}
 .tank .tq{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font:600 11px var(--f-mono);color:var(--faint)}
@@ -778,8 +780,8 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // phone can add its own in ⚙ → FWD water tank (saved on the phone). Between points: straight line.
 // 2026-11-15: owner: FWD 0.47 V = 7/8. 2026-11-16: owner: BACK = 8/8 at 0.06 V (note: ~0 V is also what an
 // open wire reads — confirm with a second point)
-// 2026-11-16: owner: FWD 6/8 at 0.72 V.
-const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7},{v:0.72,n:6}],aft:[{v:0.06,n:8}]};
+// 2026-11-16: owner: FWD 6/8 at 0.72 V. 2026-11-17: FWD emptied (pump drew air) = 2.07 V → 0 (first red flashing).
+const TANK_CAL_DEFAULT={fwd:[{v:0.47,n:7},{v:0.72,n:6},{v:2.07,n:0}],aft:[{v:0.06,n:8}]};
 // Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
 // relay off = FWD tank, relay on = AFT (back) tank.
 const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
@@ -812,8 +814,10 @@ function tankHtml(it){
   const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'}`;
   return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks"><b class="tlabel">${TANK_NAME[k]}</b><div class="dial">${tankLeds(n)}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
 }
+// like the KUS gauge on board: empty (0/8) = the first red light flashing; 1/8 = first red solid; …; 8/8 = all lit
 function tankLeds(n){ return TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
-    return `<i class="tl ${i<2?'red':'green'} ${n!=null&&i<n?'on':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join(''); }
+    const lit=n!=null&&(i<n||(n===0&&i===0)), blink=n===0&&i===0;
+    return `<i class="tl ${i<2?'red':'green'} ${lit?'on':''} ${blink?'blink':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join(''); }
 // light mode from the two mode relays: 'anchor' | 'sail' | 'off' (if both are somehow on, anchor wins on screen;
 // the Shelly scripts switch the other one off within seconds)
 function lightMode(){ return isOn(ID.bilge)?'anchor':isOn(ID.tankFwd)?'sail':'off'; }
@@ -937,7 +941,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-16.6';
+const BUILD='2026-11-17.1';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
