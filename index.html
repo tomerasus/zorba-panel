@@ -789,7 +789,7 @@ function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null)
 // decision 2026-11-17; the boat's KUS gauge is uncalibrated and not used). The first ~7 gal do not move it.
 // Data: shelly\tank-fill-2026-11-17.csv.
 const TANK_CAL_DEFAULT={fwd:[{v:2.07,n:0},{v:1.45,n:1},{v:1.08,n:2},{v:0.86,n:3},{v:0.68,n:4},{v:0.44,n:5},{v:0.28,n:6},{v:0.24,n:7}],
-  aft:[{v:0.06,n:8}]};
+  aft:[{v:0.06,n:8}]};   // BACK full = 8/8 at 0.06–0.07 V (measured 2026-11-15 and again 2026-11-17)
 // Which water tank the Add-on reads: Shelly "Switch to back water tank" drives a changeover relay on the sender wire.
 // relay off = FWD tank, relay on = AFT (back) tank.
 const tankSel=()=>isOn(ID.tankSel)?'aft':'fwd';
@@ -813,11 +813,11 @@ function tankLights(k,v){
   if(thr) return thr.filter(x=>v<=x+1e-9).length;              // 0…7
   const p=tankCal(k).slice().sort((a,b)=>a.v-b.v);
   if(!p.length) return null;
-  if(p.length===1) return Math.abs(v-p[0].v)<=0.3?Math.min(7,p[0].n):null;   // one point: only trust it close by; never 8
+  if(p.length===1) return Math.abs(v-p[0].v)<=0.3?p[0].n:null;   // one point: only trust it close by
   let a=p[0],b=p[1];
   for(let i=1;i<p.length;i++){a=p[i-1];b=p[i]; if(v<=b.v) break;}
   const n=b.v===a.v?a.n:a.n+(b.n-a.n)*(v-a.v)/(b.v-a.v);
-  return Math.max(0,Math.min(7,Math.round(n)));                // never 8, same rule as FWD
+  return Math.max(0,Math.min(8,Math.round(n)));                // BACK has its own rules (owner): 8 allowed here
 }
 // lights sit on a symmetric arc like the real gauge: lower left (235°), over the top, to lower right (125°),
 // so the first red and the last green are at the same height (compass degrees, evenly spaced)
@@ -959,7 +959,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.4';
+const BUILD='2026-11-17.5';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
