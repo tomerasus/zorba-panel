@@ -916,7 +916,12 @@ const utcStr=t=>new Date(t).toISOString().slice(0,19).replace('T',' ');
 async function localStatuses(){
   const out={}, now=utcStr(Date.now());
   await Promise.all(Object.entries(localIp).map(async([id,ip])=>{
-    try{ const s=await localRpc(ip,'Shelly.GetStatus',{},2500); s._updated=now; s.cloud={...(s.cloud||{}),connected:true}; out[id]=s; }catch(e){}
+    try{ const s=await localRpc(ip,'Shelly.GetStatus',{},2500);
+      // Shelly.GetStatus leaves out "virtual" components — the battery (BMV) and solar values the stern-light
+      // Shelly's scripts write into number:200…204, text:205, text:210 — so fetch those with their values too
+      if(id===ID.deckStern){ const c=await localRpc(ip,'Shelly.GetComponents',{dynamic_only:true,include:['status']},3000);
+        for(const x of (c.components||[])) if(x.status) s[x.key]=x.status; }
+      s._updated=now; s.cloud={...(s.cloud||{}),connected:true}; out[id]=s; }catch(e){}
   }));
   return out;
 }
@@ -1023,7 +1028,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.12';
+const BUILD='2026-11-17.13';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
