@@ -205,6 +205,17 @@ button.tag.solar{font:inherit;color:var(--fg);cursor:pointer;text-align:left}
 .tag.solar .sx{font-family:var(--f-mono);font-size:10px;display:grid;width:100%;white-space:normal;line-height:1.2;border-top:1px solid var(--line);padding-top:3px;margin-top:3px}
 .tag.solar .sx+.sx{border-top:0;margin-top:0;padding-top:1px}
 .quick .sun{font-size:16px;margin:0 3px 0 0}
+/* "Graph" button under the totals; opens the battery & solar graph as a card over the boat */
+.ptop .quick .qgraph{justify-self:start;margin-top:6px;display:inline-flex;align-items:center;gap:6px;font:600 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--q-yellow);background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid color-mix(in srgb,var(--q-yellow) 55%,var(--line));border-radius:999px;padding:5px 11px 5px 9px;cursor:pointer;text-shadow:none}
+.quick .qgraph svg{width:16px;height:16px}
+.quick.old .qgraph{opacity:1}
+#graphCard{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:#000a}
+#graphCard[hidden]{display:none}
+#graphCard .tile.graph{width:min(680px,100%);max-height:calc(100vh - 32px);overflow:auto;margin:0;box-shadow:0 12px 40px #000c}
+.tile.graph .lbl{display:flex;align-items:center;gap:8px}
+.gclose{order:3;margin-left:6px;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#0b1218;color:var(--fg);font-size:15px;cursor:pointer;display:grid;place-items:center;padding:0}
+.gclose[hidden]{display:none}
 .quick .alticon{width:15px;height:15px;margin:0 4px 0 1px;vertical-align:-1px}
 .quick .altin{font-size:13px;margin-left:6px;opacity:.75}
 .fridge{display:grid;grid-template-columns:auto auto auto;gap:1px 8px;align-items:baseline;text-align:left}
@@ -294,7 +305,7 @@ tr:last-child td{border-bottom:0}
   <div class="main">
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
-      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qAlt" title="Alternator DC-DC (Orion XS): output A into the house bank, input A from the alternator side" hidden></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span></div></div>
+      <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qAlt" title="Alternator DC-DC (Orion XS): output A into the house bank, input A from the alternator side" hidden></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span><button type="button" id="graphBtn" class="qgraph" aria-label="Open the battery and solar graph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M4 16l5-6 4 3 7-8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Graph</button></div></div>
       <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
@@ -313,8 +324,8 @@ tr:last-child td{border-bottom:0}
   <section class="victron">
     <div class="sec-head"><h2>Victron · power</h2><span class="hint" id="bmvUpd">BMV via Bluetooth → Shelly</span></div>
     <div class="vtiles" id="vtiles"></div>
-    <div class="tile graph">
-      <div class="lbl">Battery &amp; solar <span class="gbtns"><button type="button" class="gbtn" data-range="1" aria-pressed="true">24 h</button><button type="button" class="gbtn" data-range="7" aria-pressed="false">7 days</button></span></div>
+    <div class="tile graph" id="graphTile">
+      <div class="lbl">Battery &amp; solar <button type="button" class="gclose" id="graphClose" aria-label="Close the graph" hidden>✕</button><span class="gbtns"><button type="button" class="gbtn" data-range="1" aria-pressed="true">24 h</button><button type="button" class="gbtn" data-range="7" aria-pressed="false">7 days</button></span></div>
       <div class="gkey"><span><i style="background:#2fe07a"></i>Charge %</span><span><i style="background:#ffb547"></i>Solar A</span><span><i style="background:#4fb3d9"></i>Battery A</span></div>
       <svg id="gSoc" class="gsvg" height="120" role="img" aria-label="House bank charge %"></svg>
       <svg id="gAmp" class="gsvg" height="130" role="img" aria-label="Battery and solar current"></svg>
@@ -532,6 +543,16 @@ function renderGraph(){
     : `${rows.length} points · last recorded ${agoShort(Date.now()-last[0]*1e3)} ago · every ~10 min, around the clock`;
 }
 window.addEventListener('resize',()=>renderGraph());
+// "Graph" button under the totals: show the same graph as a card over the boat; ✕, the dark backdrop or Esc closes it
+const graphCard=document.createElement('div'); graphCard.id='graphCard'; graphCard.hidden=true; document.body.appendChild(graphCard);
+const graphHome=document.createComment('graph tile home'); $('#graphTile').before(graphHome);
+function openGraph(){ graphCard.appendChild($('#graphTile')); $('#graphClose').hidden=false; graphCard.hidden=false;
+  requestAnimationFrame(()=>renderGraph()); if(Date.now()-graphAt>60e3) loadGraph(); }
+function closeGraph(){ if(graphCard.hidden) return; graphHome.after($('#graphTile')); $('#graphClose').hidden=true; graphCard.hidden=true; requestAnimationFrame(()=>renderGraph()); }
+$('#graphBtn').onclick=openGraph;
+$('#graphClose').onclick=closeGraph;
+graphCard.addEventListener('click',e=>{ if(e.target===graphCard) closeGraph(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeGraph(); });
 
 function renderList(){
   const all=Object.values(S.devices);
@@ -1077,7 +1098,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-18.2';
+const BUILD='2026-11-18.3';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
