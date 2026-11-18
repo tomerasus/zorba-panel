@@ -915,21 +915,43 @@ const utcStr=t=>new Date(t).toISOString().slice(0,19).replace('T',' ');
 // read every mains Shelly directly; returns {id: status} ({} when none answers). A Shelly that misses a round keeps its last good
 // reading (and its old time) instead of vanishing — the stern-light Shelly runs the BMV/solar scripts and Bluetooth
 // scanning and often takes 1–3 s or misses a round; the normal freshness rules still catch a real outage.
+// Bluetooth temperature sensors, registered locally (BTHome) on the Shelly that hears each best (2026-11-18),
+// so they work on the boat Wi-Fi with no internet. Address → the sensor's Shelly Cloud id (matched by readings).
+const BT_SENSORS={'c0:2c:ed:2c:3e:a6':ID.refUp,'c0:2c:ed:aa:1f:2b':ID.refDown,'c0:2c:ed:2c:5c:65':ID.frzUp,'c0:2c:ed:40:de:e6':ID.frzDown,
+  '08:b9:5f:d2:65:4f':ID.master,'fc:4d:6a:39:83:d1':ID.mainCabin,'c0:2c:ed:49:2a:ce':ID.inverter,'c0:2c:ed:aa:31:14':ID.engine};
+const BT_GATEWAYS=new Set([ID.bilge,ID.heater,ID.fan]);   // bilge: 4 fridge/freezer · water heater: cabins + inverter · fan: engine room
+// all dynamic components with their values (the Shelly answers in pages)
+async function localDynamic(ip,ms){ const all=[]; let total=0;
+  do{ const r=await localRpc(ip,'Shelly.GetComponents',{dynamic_only:true,include:['status','config'],offset:all.length},ms);
+    total=r.total||0; all.push(...(r.components||[])); if(!(r.components||[]).length) break; }while(all.length<total);
+  return all; }
+// turn the BTHome readings into the same shape Shelly Cloud gives for these sensors
+function btEntries(comps){ const by={};
+  for(const c of comps){ if(!c.key.startsWith('bthomesensor')) continue; const id=BT_SENSORS[c.config?.addr]; if(!id||c.status?.value==null) continue;
+    const e=by[id]||(by[id]={cloud:{connected:true},_t:0}), v=c.status.value, t=c.status.last_updated_ts||0;
+    if(c.config.obj_id===69) e['temperature:0']={tC:v}; else if(c.config.obj_id===46) e['humidity:0']={rh:v};
+    else if(c.config.obj_id===1) e['devicepower:0']={battery:{percent:v}}; else continue;
+    if(c.config.obj_id!==1) e._t=Math.max(e._t,t); }
+  for(const e of Object.values(by)){ e._updated=e._t?utcStr(e._t*1000):null; delete e._t; }
+  return by; }
 const lastLocal={};
 async function localStatuses(){
-  const out={}; let fresh=0;   // fresh: how many Shellys really answered this round (0 = not on the boat Wi-Fi)
+  const out={}, btOut={}; let fresh=0;   // fresh: how many Shellys really answered this round (0 = not on the boat Wi-Fi)
   await Promise.all(Object.entries(localIp).map(async([id,ip])=>{
     try{ let s;
       if(id===ID.deckStern){
         // lighter than the full status: its light switch + the virtual components (BMV number:200…204, text:205,
         // solar/alternator text:210) — Shelly.GetStatus leaves those out, so they must be asked for separately
         s={'switch:0':await localRpc(ip,'Switch.GetStatus',{id:0},6000)};
-        const c=await localRpc(ip,'Shelly.GetComponents',{dynamic_only:true,include:['status']},6000);
-        for(const x of (c.components||[])) if(x.status) s[x.key]=x.status;
+        for(const x of await localDynamic(ip,6000)) if(x.status) s[x.key]=x.status;
       } else s=await localRpc(ip,'Shelly.GetStatus',{},3000);
       s._updated=utcStr(Date.now()); s.cloud={...(s.cloud||{}),connected:true}; lastLocal[id]=s; out[id]=s; fresh++;
+      // Shellys that hold Bluetooth sensors: read those too (kept from the last good round if this read fails)
+      if(BT_GATEWAYS.has(id)){ try{ lastLocal['bt:'+id]=btEntries(await localDynamic(ip,4000)); }catch(e){} }
     }catch(e){ if(lastLocal[id]) out[id]=lastLocal[id]; }
+    if(BT_GATEWAYS.has(id)&&lastLocal['bt:'+id]) Object.assign(btOut,lastLocal['bt:'+id]);
   }));
+  for(const [sid,e] of Object.entries(btOut)) out[sid]=e;   // sensor entries, keyed by the sensor's cloud id
   return fresh?out:{};      // nobody answered: away from the boat → the cloud takes over
 }
 // switch a relay: directly on the boat Wi-Fi when that link is up, otherwise through Shelly Cloud
@@ -954,6 +976,9 @@ async function refresh(){
           try{ lastCloud=(await cloud('/device/all_status')).devices_status||lastCloud; learnIps(lastCloud);
                if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();store.set('names',names);} }catch(e){} }
         data={...(lastCloud||{}),...loc};
+        // a Bluetooth sensor can come both ways: keep whichever reading is newer
+        for(const sid of Object.values(BT_SENSORS)){ const c=lastCloud?.[sid], l=loc[sid];
+          if(c&&l&&utc(c._updated)>(utc(l._updated)||0)) data[sid]=c; }
       }
     }
     if(!data){
@@ -1038,7 +1063,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-17.15';
+const BUILD='2026-11-18.1';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
