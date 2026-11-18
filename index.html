@@ -511,8 +511,10 @@ function renderGraph(){
   const rows=graphRows.filter(r=>r[0]>=t0);
   const X=t=>PADL+(t-t0)/(now-t0)*(W-PADL-PADR);
   // a gap of more than 25 min (boat silent / job skipped) breaks the line
+  // a point that starts a new piece also gets a tiny stroke, so with round caps a lone point shows as a dot
   const path=(idx,Y)=>{let d='',prev=null;for(const r of rows){if(r[idx]==null){prev=null;continue;}
-    d+=(prev&&r[0]-prev<1500?'L':'M')+X(r[0]).toFixed(1)+' '+Y(r[idx]).toFixed(1)+' ';prev=r[0];}return d;};
+    const xy=X(r[0]).toFixed(1)+' '+Y(r[idx]).toFixed(1);
+    d+=(prev&&r[0]-prev<1500?'L'+xy+' ':'M'+xy+' l0.01 0 ');prev=r[0];}return d;};
   // time axis: every 6 h for 24 h, every day for 7 days
   const ticks=[]; const step=graphDays===1?6*3600:86400; const dd=new Date(t0*1e3);
   dd.setMinutes(0,0,0); if(graphDays===1) dd.setHours(Math.ceil(dd.getHours()/6)*6); else {dd.setHours(0); dd.setDate(dd.getDate()+1);}
@@ -525,7 +527,7 @@ function renderGraph(){
   const socLine=path(1,Ys);
   sSoc.setAttribute('viewBox',`0 0 ${W} ${H1}`);
   sSoc.innerHTML=`${grid(H1,8,H1-16,[0,25,50,75,100],v=>v+'%',Ys)}
-    <path d="${socLine}" fill="none" stroke="#2fe07a" stroke-width="2" stroke-linejoin="round"/>
+    <path d="${socLine}" fill="none" stroke="#2fe07a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     ${ticks.map(t=>`<text x="${X(t)}" y="${H1-3}" text-anchor="middle" fill="#8197a4" font-size="10" font-family="IBM Plex Mono,monospace">${tlab(t)}</text>`).join('')}`;
   // amps: battery (can be negative) and solar
   const H2=130, vals=rows.flatMap(r=>[r[2],r[3]]).filter(v=>v!=null);
@@ -534,8 +536,8 @@ function renderGraph(){
   const stepA=span<=40?10:span<=100?25:50, aVals=[]; for(let v=Math.ceil(lo/stepA)*stepA;v<=top;v+=stepA) aVals.push(v);
   sAmp.setAttribute('viewBox',`0 0 ${W} ${H2}`);
   sAmp.innerHTML=`${grid(H2,8,H2-16,aVals,v=>v+'A',Ya)}
-    <path d="${path(3,Ya)}" fill="none" stroke="#ffb547" stroke-width="2" stroke-linejoin="round"/>
-    <path d="${path(2,Ya)}" fill="none" stroke="#4fb3d9" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="${path(3,Ya)}" fill="none" stroke="#ffb547" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${path(2,Ya)}" fill="none" stroke="#4fb3d9" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
     ${ticks.map(t=>`<text x="${X(t)}" y="${H2-3}" text-anchor="middle" fill="#8197a4" font-size="10" font-family="IBM Plex Mono,monospace">${tlab(t)}</text>`).join('')}`;
   const last=graphRows[graphRows.length-1];
   $('#gNote').textContent=graphErr?`History not available (${graphErr}). It is recorded every 10 minutes by the boat recorder.`
@@ -1098,7 +1100,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-18.3';
+const BUILD='2026-11-18.4';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
