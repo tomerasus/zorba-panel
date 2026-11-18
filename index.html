@@ -987,7 +987,7 @@ async function refresh(){
       if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();store.set('names',names);}
       data=(await cloud('/device/all_status')).devices_status||{}; lastCloud=data; learnIps(data);
     }
-    R=shape(data); lastOk=Date.now(); lastErr='';
+    lastData=data; R=shape(data); lastOk=Date.now(); lastErr='';
     S=deaden(R); record(S.bmv);
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
   }catch(e){ lastErr=link==='local'||NATIVE?('Boat not reachable: '+e.message):navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone'; }
@@ -995,6 +995,20 @@ async function refresh(){
   polling=false;
   if(!dragging) render();
 }
+// Fast battery: on the boat Wi-Fi, fetch just the stern Shelly's BMV/solar values every 2 s between the normal
+// 5 s rounds (the Bmv script writes them every ~2–5 s since 2026-11-18), so a change in current shows quickly.
+let lastData=null, fastBusy=false;
+async function fastBattery(){
+  if(!NATIVE||link!=='local'||!lastData||polling||fastBusy||document.hidden||dragging) return;
+  const ip=localIp[ID.deckStern]; if(!ip) return; fastBusy=true;
+  try{ const s={...(lastLocal[ID.deckStern]||lastData[ID.deckStern]||{})};
+    for(const x of await localDynamic(ip,2500)) if(x.status) s[x.key]=x.status;
+    s._updated=utcStr(Date.now()); lastLocal[ID.deckStern]=s; lastData={...lastData,[ID.deckStern]:s};
+    R=shape(lastData); lastOk=Date.now(); S=deaden(R); render(); }
+  catch(e){}   // a miss is fine: the normal round follows
+  fastBusy=false;
+}
+setInterval(fastBattery,2000);
 // keep the boat Wi-Fi addresses current (Shelly Cloud reports each Shelly's address)
 function learnIps(st){ let ch=false; for(const id of Object.keys(LOCAL_IP_DEFAULT)){ const ip=st?.[id]?.wifi?.sta_ip; if(ip&&localIp[id]!==ip){localIp[id]=ip;ch=true;} }
   if(ch) store.set('localip',Object.fromEntries(Object.entries(localIp).filter(([id,ip])=>LOCAL_IP_DEFAULT[id]!==ip))); }
@@ -1063,7 +1077,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-18.1';
+const BUILD='2026-11-18.2';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
