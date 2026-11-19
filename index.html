@@ -326,9 +326,10 @@ tr:last-child td{border-bottom:0}
     <div class="vtiles" id="vtiles"></div>
     <div class="tile graph" id="graphTile">
       <div class="lbl">Battery &amp; solar <button type="button" class="gclose" id="graphClose" aria-label="Close the graph" hidden>✕</button><span class="gbtns"><button type="button" class="gbtn" data-range="1" aria-pressed="true">24 h</button><button type="button" class="gbtn" data-range="7" aria-pressed="false">7 days</button></span></div>
-      <div class="gkey"><span><i style="background:#2fe07a"></i>Charge %</span><span><i style="background:#ffb547"></i>Solar A</span><span><i style="background:#4fb3d9"></i>Battery A</span></div>
+      <div class="gkey"><span><i style="background:#2fe07a"></i>Charge %</span><span><i style="background:#4fb3d9"></i>Battery A</span><span><i style="background:#ffb547"></i>Solar A</span><span><i style="background:#c58cff"></i>Alternator A</span></div>
       <svg id="gSoc" class="gsvg" height="120" role="img" aria-label="House bank charge %"></svg>
-      <svg id="gAmp" class="gsvg" height="130" role="img" aria-label="Battery and solar current"></svg>
+      <svg id="gBat" class="gsvg" height="130" role="img" aria-label="Battery current, -250 to +250 A"></svg>
+      <svg id="gAmp" class="gsvg" height="130" role="img" aria-label="Solar and alternator current, 0 to 60 A"></svg>
       <div class="hint" id="gNote">Loading history…</div>
     </div>
     <div class="tbl-wrap"><table>
@@ -493,7 +494,7 @@ function renderVictron(){
 }
 
 // ---- 24/7 history graph: recorded every 10 min by a GitHub job (tools/record.mjs) ----
-// rows: [unix s, SoC %, battery A, solar A, Ah left, solar Ah today]
+// rows: [unix s, SoC %, battery A, solar A, Ah left, solar Ah today, alternator out A (from 2026-11-18)]
 const GRAPH_URL='https://raw.githubusercontent.com/tomerasus/zorba-panel/data/history.json';
 let graphRows=[], graphDays=1, graphAt=0, graphErr='';
 async function loadGraph(){
@@ -531,16 +532,16 @@ function renderGraph(){
   sSoc.innerHTML=`${grid(H1,8,H1-16,[0,25,50,75,100],v=>v+'%',Ys)}
     <path d="${socLine}" fill="none" stroke="#2fe07a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots(1,Ys,'#2fe07a')}
     ${ticks.map(t=>`<text x="${X(t)}" y="${H1-3}" text-anchor="middle" fill="#8197a4" font-size="10" font-family="IBM Plex Mono,monospace">${tlab(t)}</text>`).join('')}`;
-  // amps: battery (can be negative) and solar
-  const H2=130, vals=rows.flatMap(r=>[r[2],r[3]]).filter(v=>v!=null);
-  const hi=Math.max(10,...vals), lo=Math.min(0,...vals), span=Math.ceil((hi-lo)/10)*10||10;
-  const top=lo+span, Ya=v=>8+(top-v)/span*(H2-24);
-  const stepA=span<=40?10:span<=100?25:50, aVals=[]; for(let v=Math.ceil(lo/stepA)*stepA;v<=top;v+=stepA) aVals.push(v);
+  // fixed scales (owner): battery -250..+250 A; solar and alternator 0..60 A (values outside sit on the edge)
+  const H2=130, tlabs=H=>ticks.map(t=>`<text x="${X(t)}" y="${H-3}" text-anchor="middle" fill="#8197a4" font-size="10" font-family="IBM Plex Mono,monospace">${tlab(t)}</text>`).join('');
+  const scale=(lo,hi)=>v=>8+(hi-Math.min(hi,Math.max(lo,v)))/(hi-lo)*(H2-24);
+  const line=(idx,Y,col,w)=>`<path d="${path(idx,Y)}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>${dots(idx,Y,col)}`;
+  const Yb=scale(-250,250), sBat=$('#gBat');
+  sBat.setAttribute('viewBox',`0 0 ${W} ${H2}`);
+  sBat.innerHTML=`${grid(H2,8,H2-16,[-250,-125,0,125,250],v=>v+'A',Yb)}${line(2,Yb,'#4fb3d9',1.8)}${tlabs(H2)}`;
+  const Ya=scale(0,60);
   sAmp.setAttribute('viewBox',`0 0 ${W} ${H2}`);
-  sAmp.innerHTML=`${grid(H2,8,H2-16,aVals,v=>v+'A',Ya)}
-    <path d="${path(3,Ya)}" fill="none" stroke="#ffb547" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    <path d="${path(2,Ya)}" fill="none" stroke="#4fb3d9" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>${dots(3,Ya,'#ffb547')}${dots(2,Ya,'#4fb3d9')}
-    ${ticks.map(t=>`<text x="${X(t)}" y="${H2-3}" text-anchor="middle" fill="#8197a4" font-size="10" font-family="IBM Plex Mono,monospace">${tlab(t)}</text>`).join('')}`;
+  sAmp.innerHTML=`${grid(H2,8,H2-16,[0,20,40,60],v=>v+'A',Ya)}${line(6,Ya,'#c58cff',1.8)}${line(3,Ya,'#ffb547',2)}${tlabs(H2)}`;
   const last=graphRows[graphRows.length-1];
   $('#gNote').textContent=graphErr?`History not available (${graphErr}). It is recorded every 10 minutes by the boat recorder.`
     : !rows.length?'Recording started: the first points appear within about 10 minutes.'
@@ -704,7 +705,7 @@ function currentAlerts(){
     else if(w==='unknown'&&lastOk&&Date.now()-lastOk<=STALE_MS) out.push({id:'bilge-off',lvl:'warn',text:'Bilge alarm is offline'});}
   const b=S.bmv;
   if(on('ah')&&b&&b.consumedAh!=null&&boatAge()<=STALE_MS){const left=Math.round(BANK_AH-Math.abs(b.consumedAh)); if(left<lim('ah')) out.push({id:'ah',lvl:'bad',text:`House bank low: ${left} Ah left`});}
-  const t=(k,id,label,lvl,word)=>{if(!on(k)) return; const x=d(id); if(x.tC!=null&&(BOX_IDS.has(id)||!stale(x.updated))&&x.tC>lim(k)) out.push({id:'t-'+id,lvl,text:`${label} ${word}: ${fmt(x.tC)} °C`});};
+  const t=(k,id,label,lvl,word)=>{if(!on(k)) return; const x=d(id); if(x.tC!=null&&!stale(x.updated)&&x.tC>lim(k)) out.push({id:'t-'+id,lvl,text:`${label} ${word}: ${fmt(x.tC)} °C`});};
   t('fridge',ID.refDown,'Fridge','warn','warm'); t('freezer',ID.frzDown,'Freezer','warn','warm');
   t('engine',ID.engine,'Engine room','bad','hot'); t('chamber',ID.inverter,'Victron chamber','warn','hot');
   if(on('faults')&&boatAge()<=STALE_MS){
@@ -714,7 +715,7 @@ function currentAlerts(){
   // sensors that stop reporting (only while the boat itself is online; otherwise the boat alert covers it)
   if(on('sensorSilent')&&lastOk&&Date.now()-lastOk<=STALE_MS&&boatAge()<=STALE_MS){
     for(const x of Object.values(S.devices)){
-      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>Math.max(lim('sensorSilent')*60e3,BOX_IDS.has(x.id)?BOX_DEAD_MS:0))
+      if(x.kind==='climate'&&x.updated&&Date.now()-x.updated>lim('sensorSilent')*60e3)
         out.push({id:'silent-'+x.id,lvl:'warn',text:`No reading from ${x.name} for ${agoShort(Date.now()-x.updated)}`});
       if(x.kind==='flood'&&x.online===false) out.push({id:'off-'+x.id,lvl:'warn',text:`${x.name} sensor is offline`});
     }
@@ -799,11 +800,9 @@ function unlockAudio(){
 const STALE_MS=50e3;         // boat link (BMV + solar via the stern-light Shelly reports every 10–25 s)
 const SENSOR_STALE_MS=10*60e3; // Bluetooth temperature sensors: some only report every few minutes
 const DEAD_MS=32*60e3;       // no new data for longer than this: the reading is shown as "—"
-// Fridge/freezer sensors sit inside the boxes and reach their gateway (the "Refrigerator" Shelly) only at
-// -89..-95 dBm, so readings often get through only every 30–60+ min. A fridge changes slowly: keep their
-// last reading (with its age) for 3 h before showing "—" or the "stopped reporting" alert.
-const BOX_IDS=new Set([ID.refUp,ID.refDown,ID.frzUp,ID.frzDown]), BOX_DEAD_MS=3*3600e3;
-const deadAfter=id=>BOX_IDS.has(id)?BOX_DEAD_MS:DEAD_MS;
+// Fridge/freezer sensors now report reliably through the bilge Shelly: same 32 min rule as every sensor
+// (the old 3 h exception was removed 2026-11-18, owner confirmed).
+const deadAfter=id=>DEAD_MS;
 // bilge alarm: 'wet' (float switch on), 'dry', or 'unknown' (Shelly offline / no data). A mains Shelly only
 // reports on change, so its timestamp is not a heartbeat — the cloud's online flag is what counts.
 function bilgeState(){const d=dev(ID.bilge); if(d.online===false||d.input==null) return 'unknown'; return d.input?'wet':'dry';}
@@ -1102,7 +1101,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-18.5';
+const BUILD='2026-11-18.6';
 async function checkUpdate(){
   if(!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();

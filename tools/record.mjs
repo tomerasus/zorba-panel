@@ -1,6 +1,6 @@
 // Runs in GitHub Actions every 10 minutes: reads Zorba's battery and solar from Shelly Cloud
 // and appends one row to history.json (kept for 7 days). Key and server come from repo secrets.
-// Row: [unix seconds, SoC %, battery A, solar A (4 chargers), Ah left, solar Ah today]
+// Row: [unix seconds, SoC %, battery A, solar A (4 chargers), Ah left, solar Ah today, alternator out A]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const KEY = process.env.SHELLY_KEY, SERVER = process.env.SHELLY_SERVER;
@@ -41,8 +41,12 @@ if (!d || now - updated > STALE_S) {
   const solKWh = solar.reduce((a, f) => a + (Number(f[2]) || 0), 0);
   const cons = num('number:204');
   const r1 = v => v == null ? null : Math.round(v * 10) / 10;
+  // alternator segment: "A15,state,error,inV,outV,outA,inA,rssi,heard" -> output A
+  const altSeg = (d['text:210']?.value || '').split(';').find(p => p.startsWith('A'));
+  const altOut = altSeg ? Number(altSeg.split(',')[5]) : NaN;
   const row = [now, r1(num('number:200')), r1(num('number:202')), r1(solA),
-               cons == null ? null : Math.round(BANK_AH - Math.abs(cons)), Math.round(solKWh * 1000 / CHARGE_V)];
+               cons == null ? null : Math.round(BANK_AH - Math.abs(cons)), Math.round(solKWh * 1000 / CHARGE_V),
+               Number.isFinite(altOut) ? r1(altOut) : null];
   hist.rows.push(row);
   console.log('recorded', JSON.stringify(row));
 }
