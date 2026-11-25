@@ -645,7 +645,7 @@ let names={}, namesAt=0;
 function shape(st){
   const devices={};
   for(const [id,s] of Object.entries(st)){
-    const d={id,name:names[id]?.name||id,online:s.cloud?.connected??s._dev_info?.online??true,updated:utc(s._updated)};
+    const d={id,name:names[id]?.name||(id===ID.flood?'Washing machine':id),online:s.cloud?.connected??s._dev_info?.online??true,updated:utc(s._updated)};
     if(s['switch:0']){d.kind='relay';d.on=!!s['switch:0'].output;d.deviceTemp=s['switch:0'].temperature?.tC??null;}
     if(s['temperature:0']){d.kind='climate';d.tC=s['temperature:0'].tC;}
     if(s['humidity:0']) d.rh=s['humidity:0'].rh;
@@ -975,6 +975,9 @@ function btEntries(comps){ const by={};
   for(const e of Object.values(by)){ e._updated=e._t?utcStr(e._t*1000):null; delete e._t; }
   return by; }
 const lastLocal={};
+// The flood sensor sleeps and cannot be asked. Its own actions tell the bilge Shelly (KVS "zorba_flood" = wet / dry) over the
+// boat Wi-Fi, so water raises the alarm with no internet. There is no sign of life in between: "dry" is never shown from this.
+let floodWet=false;
 async function localStatuses(){
   const out={}, btOut={}; let fresh=0;   // fresh: how many Shellys really answered this round (0 = not on the boat Wi-Fi)
   await Promise.all(Object.entries(localIp).map(async([id,ip])=>{
@@ -987,6 +990,7 @@ async function localStatuses(){
       } else s=await localRpc(ip,'Shelly.GetStatus',{},3000);
       s._updated=utcStr(Date.now()); s.cloud={...(s.cloud||{}),connected:true}; lastLocal[id]=s; out[id]=s; fresh++;
       // Shellys that hold Bluetooth sensors: read those too (kept from the last good round if this read fails)
+      if(id===ID.bilge){ try{ floodWet=(await localRpc(ip,'KVS.Get',{key:'zorba_flood'},3000)).value==='wet'; }catch(e){} }
       if(BT_GATEWAYS.has(id)){ try{ lastLocal['bt:'+id]=btEntries(await localDynamic(ip,4000)); }catch(e){} }
     }catch(e){ if(lastLocal[id]) out[id]=lastLocal[id]; }
     if(BT_GATEWAYS.has(id)&&lastLocal['bt:'+id]) Object.assign(btOut,lastLocal['bt:'+id]);
@@ -1016,6 +1020,7 @@ async function refresh(){
           try{ const c=(await cloud('/device/all_status')).devices_status; if(c&&netOk()){ lastCloud=c; learnIps(c); }
                if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();store.set('names',names);} }catch(e){} }
         data={...(lastCloud||{}),...loc};
+        if(floodWet) data[ID.flood]={...(data[ID.flood]||{cloud:{connected:true}}),'flood:0':{alarm:true}};
         // a Bluetooth sensor can come both ways: keep whichever reading is newer
         for(const sid of Object.values(BT_SENSORS)){ const c=lastCloud?.[sid], l=loc[sid];
           if(c&&l&&utc(c._updated)>(utc(l._updated)||0)) data[sid]=c; }
@@ -1073,7 +1078,7 @@ function renderNet(){ if(!IN_APP) return;
 function setNet(on){ netOn=on; try{ on?sessionStorage.setItem('zorba.net','1'):sessionStorage.removeItem('zorba.net'); }catch(e){}
   if(on){ cloudTryAt=0; loadGraph(); checkUpdate(); }
   else { link='local'; lastCloud=null; graphErr='internet is off'; renderGraph();
-    if(R){ delete R.devices[ID.flood]; S=deaden(R); render(); } }   // the flood sensor is cloud-only: never show its old reading as live
+    if(R&&!floodWet){ delete R.devices[ID.flood]; S=deaden(R); render(); } }   // the flood sensor is cloud-only: never show its old reading as live
   renderNet(); refresh(); }
 $('#netBtn').onclick=()=>setNet(!netOn);
 $('#netBarBtn').onclick=()=>setNet(!netOn);
@@ -1137,7 +1142,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-25.1';
+const BUILD='2026-11-25.2';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
