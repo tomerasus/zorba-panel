@@ -360,7 +360,7 @@ const SAILBOAT='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 2.5v13
 const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
 
 // Shelly device ids on Zorba
-const ID={tankSel:'acebe6f5d2a0',tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
+const ID={tankSel:'acebe6f5d2a0',tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',blower:'acebe6f5ac5c',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c',engine:'XB211299198447892'};
 const MAST={x:47,y:40.5};
 
@@ -386,6 +386,7 @@ const ITEMS=[
  {key:'engine',type:'temp',id:ID.engine,label:'Engine room',x:50,y:65},
  {key:'heater',type:'relay',id:ID.heater,label:'Water heater',c:'var(--amber)',x:28,y:72},
  {key:'fan',type:'relay',id:ID.fan,label:'Victron fan',c:'var(--accent)',x:70,y:70},
+ {key:'blower',type:'relay',id:ID.blower,label:'Blower',c:'var(--accent)',x:66,y:78},   // added 2026-11-25; the owner places it
  {key:'inverter',type:'temp',id:ID.inverter,label:'Inverter',x:70,y:77},
  // bilge alarm: float switch on the Shelly's input (on = water). The relay is not used.
  {key:'bilge',type:'bilge',id:ID.bilge,label:'Bilge',x:27,y:83},
@@ -947,7 +948,7 @@ async function localRpc(ip,method,params={},timeoutMs){
 // mains Shellys and their boat Wi-Fi addresses (learned from Shelly Cloud whenever online; these are the known ones)
 const LOCAL_IP_DEFAULT={[ID.deckStern]:'192.168.1.21',[ID.fridge]:'192.168.1.139',[ID.bilge]:'192.168.1.244',[ID.tankFwd]:'192.168.1.154',
   [ID.anchor]:'192.168.1.180',[ID.running]:'192.168.1.225',[ID.steam]:'192.168.1.185',[ID.deckBow]:'192.168.1.165',[ID.heater]:'192.168.1.246',
-  [ID.fan]:'192.168.1.128',[ID.tankSel]:'192.168.1.52'};
+  [ID.fan]:'192.168.1.128',[ID.tankSel]:'192.168.1.52',[ID.blower]:'192.168.1.196'};
 let localIp={...LOCAL_IP_DEFAULT,...store.get('localip',{})};
 let misses=0;   // rounds in a row in which no Shelly answered on the Wi-Fi
 let link=IN_APP&&!netOn?'local':'cloud', lastCloud=null, cloudTryAt=0;   // link: 'local' (boat Wi-Fi) or 'cloud'
@@ -1142,7 +1143,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-25.2';
+const BUILD='2026-11-25.3';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
