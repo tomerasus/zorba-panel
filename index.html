@@ -844,20 +844,23 @@ function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) ta
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
 const TANK_LABEL={fwd:'FWD 120 gal',aft:'BACK 130 gal'};   // text above each gauge
-const TANK_STEP={fwd:'15'};                       // small number beside the first red light: gallons per light (FWD only)
+const TANK_STEP={};                               // small number beside the first red light (none: FWD now by gallons)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
 const TANKCAL='tankcal2-';
 ['fwd','aft'].forEach(k=>store.del('tankcal-'+k));
 const tankCal=k=>store.get(TANKCAL+k,null)||TANK_CAL_DEFAULT[k]||[];
-// Exact switch voltages (owner's rule, 2026-11-17): light n is on when the sender is AT OR BELOW TANK_THR[k][n-1]
-// and off as soon as it is above. Values = the timed-fill voltage at n/8. Light 8 is never lit (8/8 can't be
-// measured: the sender is at its top from ~95 gal to full). Above the 1st value = empty = first red flashing.
-const TANK_THR={fwd:[1.45,1.08,0.86,0.68,0.44,0.28,0.24]};   // FWD: final, from the fill of 2026-11-17
+// FWD by GALLONS (owner's rule, 2026-11-26): the 2 reds are always lit (2 reds only = empty, no flashing);
+// green 1 = 1–10 gal, 2 = 11–31, 3 = 32–52, 4 = 53–73, 5 = 74–94, 6 = 95–120. Green n is on when the sender is AT OR
+// BELOW TANK_GREEN.fwd[n-1]. Each value sits between two of the sender's steps in the timed fill of 2026-11-17 (shelly\
+// tank-fill-2026-11-17.csv): the step it passes starts at 5.4 / 10.9 / 32.2 / 52.0 / 73.8 / 94.6 gal. The first ~5 gal
+// do not move the sender, so 1–5 gal still show empty. The sender stops moving at ~95 gal: 6 greens = 95 gal to full.
+const TANK_GREEN={fwd:[2.02,1.62,1.05,0.77,0.47,0.26]};
+const TANK_GAL={fwd:['1–10','11–31','32–52','53–73','74–94','95–120']};
 function tankLights(k,v){
   if(v==null) return null;
-  const thr=TANK_THR[k];
-  if(thr) return thr.filter(x=>v<=x+1e-9).length;              // 0…7
+  const g=TANK_GREEN[k];
+  if(g) return 2+g.filter(x=>v<=x+1e-9).length;                // 2 (empty) … 8 (95 gal or more)
   const p=tankCal(k).slice().sort((a,b)=>a.v-b.v);
   if(!p.length) return null;
   if(p.length===1) return Math.abs(v-p[0].v)<=0.3?p[0].n:null;   // one point: only trust it close by
@@ -876,7 +879,8 @@ function tankHtml(it){
   if(live&&d.v!=null){const l=store.get('tanklast-'+k,null); if(!l||l.v!==d.v||Date.now()-l.t>60e3) store.set('tanklast-'+k,{v:d.v,t:Date.now()});}
   const last=live?null:store.get('tanklast-'+k,null), v=live?d.v:(last?last.v:null);
   const n=tankLights(k,v), off=v==null;
-  const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'}`;
+  const gal=TANK_GAL[k]&&n!=null?(n<=2?'empty':TANK_GAL[k][n-3]+' gal'):null;
+  const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'+(gal?' · '+gal:'')}`;
   return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks"><b class="tlabel">${TANK_LABEL[k]}</b><div class="dial">${tankLeds(n)}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
 }
 // like the KUS gauge on board: empty (0/8) = the first red light flashing; 1/8 = first red solid; …; 8/8 = all lit
@@ -1144,7 +1148,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.1';
+const BUILD='2026-11-26.2';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -1191,10 +1195,10 @@ $('#layoutCopy').onclick=async()=>{
 function renderTankCal(){
   const k=tankSel(), settling=tankSettling(), v=settling?null:dev(ID.tankFwd).v, n=tankLights(k,v), pts=tankCal(k).slice().sort((a,b)=>a.n-b.n);
   $('#tankHead').textContent=TANK_NAME[k]+' water tank'+(settling?' (switching…)':'');
-  if(TANK_THR[k]){   // calibrated by a timed fill: fixed switch voltages, nothing to tap
-    $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ${n} of 8 lights`;
+  if(TANK_GREEN[k]){   // calibrated by a timed fill, in gallons: fixed switch voltages, nothing to tap
+    $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ${n<=2?'empty (2 reds)':(n-2)+' green · '+TANK_GAL[k][n-3]+' gal'}`;
     $('#tankBtns').innerHTML='';
-    $('#tankPts').textContent='Calibrated (timed fill). Light n on at or below: '+TANK_THR[k].map((x,i)=>`${i+1}: ${x.toFixed(2)} V`).join(' · ')+' · light 8 never lit';
+    $('#tankPts').textContent='Calibrated (timed fill), 2 reds always on. Green n on at or below: '+TANK_GREEN[k].map((x,i)=>`${i+1}: ${x.toFixed(2)} V (${TANK_GAL[k][i]} gal)`).join(' · ');
     return;
   }
   $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ZORBA shows ${n==null?'?':n} of 8 lights`;
