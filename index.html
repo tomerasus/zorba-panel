@@ -12,7 +12,6 @@
 <meta name="apple-mobile-web-app-title" content="ZORBA">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Chart-table instrument panel: boat plan first, devices where they live aboard, Victron power room below. Single dark look for night watch. */
@@ -226,6 +225,11 @@ button.tag.solar{font:inherit;color:var(--fg);cursor:pointer;text-align:left}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#06222e;font-weight:600}
 .btn.danger{background:var(--bad);border-color:var(--bad);color:#2a0606;font-weight:600}
 .btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+/* ZORBA app: internet permission bar (only when the boat does not answer, or while the internet is on) */
+#netBar{position:fixed;z-index:20;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100vw - 24px);background:var(--bg);border:1px solid var(--warn);border-radius:12px;padding:8px 10px;font-size:13px;box-shadow:0 6px 24px #000a}
+#netBar[hidden],#netBtn[hidden]{display:none}
+#netBar button{flex:none;font-weight:600;font-size:13px;padding:8px 12px;border:0;border-radius:8px;background:var(--warn);color:#241500;cursor:pointer}
+#netBtn.on{border-color:var(--warn);color:var(--warn)}
 #toast{position:fixed;z-index:21;top:max(16px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--bad);color:#2a0606;font-weight:600;padding:8px 14px;border-radius:8px;max-width:calc(100vw - 32px)}
 
 /* device list */
@@ -306,7 +310,7 @@ tr:last-child td{border-bottom:0}
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
       <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qAlt" title="Alternator DC-DC (Orion XS): output A into the house bank, input A from the alternator side" hidden></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span><button type="button" id="graphBtn" class="qgraph" aria-label="Open the battery and solar graph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M4 16l5-6 4 3 7-8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Graph</button></div></div>
-      <div class="pbtns"><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="pbtns"><button class="pill iconbtn" id="netBtn" aria-pressed="false" aria-label="Internet" title="Internet" hidden><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3.5 6 3.5 9s-.5 6-3.5 9c-3-3-3.5-6-3.5-9s.5-6 3.5-9z"/></svg></button><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
     <div id="alerts" role="alert" aria-live="assertive" hidden></div>
@@ -347,6 +351,7 @@ tr:last-child td{border-bottom:0}
   <p class="foot">BMV field names are read from the Shelly script's virtual numbers 200–205 (SOC, voltage, current, power, consumed Ah, time to go). Temperatures update when the Bluetooth sensors report, usually every few minutes.</p>
 </div>
 
+<div id="netBar" hidden><span id="netMsg"></span><button type="button" id="netBarBtn"></button></div>
 <div id="toast" hidden role="alert"></div>
 
 <script>
@@ -450,7 +455,7 @@ function renderPlan(){
     else if(it.type==='running') inner=`<div class="tag"><b>${esc(it.label)}</b></div>`;   // label only: the lights themselves are drawn on the boat
     else if(it.type==='bilge'){const w=bilgeState();
       inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
-    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
+    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':d.kind?'var(--good)':'var(--muted)'}">${d.flood?'WATER!':d.kind?'Dry':'—'}</span></div>`;
     else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]), old=x.tC!=null&&stale(x.updated);
         return `<span class="v" ${old?`style="opacity:.6" title="Last reading ${ago(x.updated)} (weak signal from inside the box)"`:''}>${fmt(x.tC)}°${old?`<small style="font-size:9px;color:var(--faint)"> ${agoShort(Date.now()-x.updated)}</small>`:''}</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
       inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b>${t('refDown')}<b>Freezer</b>${t('frzDown')}</button>`;}
@@ -493,11 +498,20 @@ function renderVictron(){
   renderGraph();
 }
 
+// ---- internet permission (ZORBA Android app only; owner 2026-11-25: Starlink is very expensive under way) ----
+// The app talks only to the Shellys on the boat Wi-Fi. Shelly Cloud, the graph and app updates need the internet and
+// are used ONLY after the user switches it on, until it is stopped (or the app is closed). Every fetch in this page
+// must check netOk(). In a browser nothing changes: there the boat can only be reached through Shelly Cloud.
+const IN_APP=!!(window.ZorbaNative&&window.ZorbaNative.http);
+let netOn=false; try{ netOn=sessionStorage.getItem('zorba.net')==='1'; }catch(e){}   // survives a page reload, not closing the app
+const netOk=()=>!IN_APP||netOn;
 // ---- 24/7 history graph: recorded every 10 min by a GitHub job (tools/record.mjs) ----
 // rows: [unix s, SoC %, battery A, solar A, Ah left, solar Ah today, alternator out A (from 2026-11-18)]
 const GRAPH_URL='https://raw.githubusercontent.com/tomerasus/zorba-panel/data/history.json';
 let graphRows=[], graphDays=1, graphAt=0, graphErr='';
 async function loadGraph(){
+  if(!netOk()){ graphErr='internet is off'; renderGraph(); return; }
+  if(IN_APP&&document.hidden) return;
   try{const r=await fetch(GRAPH_URL+'?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error(r.status===404?'no data yet':'HTTP '+r.status);
     graphRows=(await r.json()).rows||[]; graphAt=Date.now(); graphErr='';}
   catch(e){graphErr=e.message;}
@@ -615,6 +629,7 @@ let queue=Promise.resolve();
 function cloud(path,params={},cfg){
   const run=async()=>{
     const c=cfg||CFG;
+    if(!netOk()) throw new Error('Internet is off: tap the globe button to allow it');
     if(!c) throw new Error('No Shelly key on this phone');
     const r=await fetch(c.server+path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({...params,auth_key:c.key})});
     const j=await r.json().catch(()=>({isok:false,errors:{http:r.status}}));
@@ -934,7 +949,8 @@ const LOCAL_IP_DEFAULT={[ID.deckStern]:'192.168.1.21',[ID.fridge]:'192.168.1.139
   [ID.anchor]:'192.168.1.180',[ID.running]:'192.168.1.225',[ID.steam]:'192.168.1.185',[ID.deckBow]:'192.168.1.165',[ID.heater]:'192.168.1.246',
   [ID.fan]:'192.168.1.128',[ID.tankSel]:'192.168.1.52'};
 let localIp={...LOCAL_IP_DEFAULT,...store.get('localip',{})};
-let link='cloud', lastCloud=null, cloudTryAt=0;   // link: 'local' (boat Wi-Fi) or 'cloud'
+let misses=0;   // rounds in a row in which no Shelly answered on the Wi-Fi
+let link=IN_APP&&!netOn?'local':'cloud', lastCloud=null, cloudTryAt=0;   // link: 'local' (boat Wi-Fi) or 'cloud'
 const utcStr=t=>new Date(t).toISOString().slice(0,19).replace('T',' ');
 // read every mains Shelly directly; returns {id: status} ({} when none answers). A Shelly that misses a round keeps its last good
 // reading (and its old time) instead of vanishing — the stern-light Shelly runs the BMV/solar scripts and Bluetooth
@@ -980,7 +996,7 @@ async function localStatuses(){
 }
 // switch a relay: directly on the boat Wi-Fi when that link is up, otherwise through Shelly Cloud
 async function setRelay(id,on){
-  if(NATIVE&&link==='local'&&localIp[id]){ await localRpc(localIp[id],'Switch.Set',{id:0,on},4000); return; }
+  if(NATIVE&&(link==='local'||!netOk())&&localIp[id]){ await localRpc(localIp[id],'Switch.Set',{id:0,on},4000); return; }
   await cloud('/device/relay/control',{id,channel:'0',turn:on?'on':'off'});
 }
 
@@ -993,11 +1009,11 @@ async function refresh(){
     if(NATIVE){
       const loc=await localStatuses();
       if(Object.keys(loc).length){
-        link='local';
+        link='local'; misses=0;
         // Bluetooth sensors and the flood sensor only reach Shelly Cloud: when there is internet too, refresh
         // them from the cloud every 30 s; offline they keep their last values and age to "—" as usual
-        if(CFG&&Date.now()-cloudTryAt>30e3){ cloudTryAt=Date.now();
-          try{ lastCloud=(await cloud('/device/all_status')).devices_status||lastCloud; learnIps(lastCloud);
+        if(netOk()&&CFG&&Date.now()-cloudTryAt>30e3){ cloudTryAt=Date.now();
+          try{ const c=(await cloud('/device/all_status')).devices_status; if(c&&netOk()){ lastCloud=c; learnIps(c); }
                if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();store.set('names',names);} }catch(e){} }
         data={...(lastCloud||{}),...loc};
         // a Bluetooth sensor can come both ways: keep whichever reading is newer
@@ -1006,16 +1022,18 @@ async function refresh(){
       }
     }
     if(!data){
+      misses++;
+      if(!netOk()) throw new Error('not answering on the Wi-Fi, internet is off');
       if(!CFG) throw new Error(NATIVE?'Boat Shellys not answering and no Shelly key for the cloud':'No Shelly key on this phone');
       link='cloud';
       if(Date.now()-namesAt>10*60e3){names=(await cloud('/interface/device/get_all_lists')).devices||{};namesAt=Date.now();store.set('names',names);}
-      data=(await cloud('/device/all_status')).devices_status||{}; lastCloud=data; learnIps(data);
+      data=(await cloud('/device/all_status')).devices_status||{}; if(!netOk()) throw new Error('internet stopped'); lastCloud=data; learnIps(data);
     }
     lastData=data; R=shape(data); lastOk=Date.now(); lastErr='';
     S=deaden(R); record(S.bmv);
     for(const id in pending){ if(!!dev(id).on===pending[id].on || Date.now()-pending[id].t>20000) delete pending[id]; }
   }catch(e){ lastErr=link==='local'||NATIVE?('Boat not reachable: '+e.message):navigator.onLine?('Shelly Cloud error: '+e.message):'No internet on this phone'; }
-  updateConn();
+  updateConn(); renderNet();
   polling=false;
   if(!dragging) render();
 }
@@ -1043,6 +1061,23 @@ function start(){ $('#setup').hidden=!!CFG; if(!CFG&&NATIVE) $('#cfgMsg').textCo
   if(CFG||NATIVE){refresh();} else {const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent='–';c.title='Not connected: tap ⚙ to enter the Shelly key';render();} }
 setInterval(refresh,5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()});
+
+// ---- internet button and bar (app only) ----
+function renderNet(){ if(!IN_APP) return;
+  const b=$('#netBtn'), bar=$('#netBar'), lost=!netOn&&misses>=2;
+  b.hidden=false; b.classList.toggle('on',netOn); b.setAttribute('aria-pressed',netOn);
+  b.title=netOn?'Internet is ON: tap to stop':'Internet is off: tap to allow it';
+  bar.hidden=!netOn&&!lost;
+  $('#netMsg').textContent=netOn?'Internet is ON':'Boat not answering on the Wi-Fi';
+  $('#netBarBtn').textContent=netOn?'Stop':'Use internet'; }
+function setNet(on){ netOn=on; try{ on?sessionStorage.setItem('zorba.net','1'):sessionStorage.removeItem('zorba.net'); }catch(e){}
+  if(on){ cloudTryAt=0; loadGraph(); checkUpdate(); }
+  else { link='local'; lastCloud=null; graphErr='internet is off'; renderGraph();
+    if(R){ delete R.devices[ID.flood]; S=deaden(R); render(); } }   // the flood sensor is cloud-only: never show its old reading as live
+  renderNet(); refresh(); }
+$('#netBtn').onclick=()=>setNet(!netOn);
+$('#netBarBtn').onclick=()=>setNet(!netOn);
+renderNet();
 
 // ---- settings ----
 $('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
@@ -1091,21 +1126,22 @@ document.addEventListener('click',async e=>{
 // doesn't report as an installed app)
 $('#exitBtn').hidden=false;
 $('#exitBtn').onclick=()=>{
+  if(IN_APP&&netOn) setNet(false);   // closing the app also stops the internet
   if(window.ZorbaNative&&window.ZorbaNative.exit){ window.ZorbaNative.exit(); return; }   // inside the ZORBA app
   window.close();
   // if the phone did not let the app close itself, say how to close it
   setTimeout(()=>{ if(!document.hidden) toast("Android didn't let the app close itself: swipe back from the screen edge to close ZORBA"); },400);
 };
 // installable app: register the offline helper (ignored where unsupported)
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}));}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{if(netOk()) return r.update();}).catch(()=>{}));}
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-18.6';
+const BUILD='2026-11-25.1';
 async function checkUpdate(){
-  if(!navigator.onLine||dragging||arranging) return;
+  if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
-    const m=t.match(/const BUILD='([^']+)'/); if(m&&m[1]!==BUILD) location.reload(); }catch(e){}
+    const m=t.match(/const BUILD='([^']+)'/); if(m&&m[1]!==BUILD&&netOk()) location.reload(); }catch(e){}
 }
 setInterval(checkUpdate,120e3);
 $('#appVersion').textContent='ZORBA app version '+BUILD;
