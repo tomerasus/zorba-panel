@@ -64,7 +64,8 @@ html,body{overflow-x:hidden}
 .pbtns{display:flex;gap:6px}
 .iconbtn{width:34px;height:34px;padding:0;justify-content:center;font-size:16px;letter-spacing:0}
 #conn{font-size:13px;color:var(--fg)}
-#conn.local::after{content:'WI-FI';font-size:9px;letter-spacing:.08em;color:var(--accent)}   /* app talking to the boat directly */
+/* connection word (owner 2026-11-25): WI-FI = boat Wi-Fi only (free) · INTERNET = costs money · NO BOAT = no data */
+#conn.net{color:var(--warn)} #conn.net i{background:var(--warn);box-shadow:0 0 6px var(--warn)}
 .quick{display:grid;gap:0;font-family:var(--f-display);font-weight:700;font-size:26px;line-height:1.05;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000,0 0 10px #000c;padding-left:2px}
 .ptop .quick span{font-family:var(--f-display);font-size:28px;font-weight:700;letter-spacing:.02em}
 #qAh{color:var(--fg)}
@@ -447,7 +448,7 @@ function renderPlan(){
     if(it.type==='chip') inner=it.below
       ?`<div class="tag below">${ledHtml(it.id,it.c,it.label)}<span class="lbl"><span>${it.icon}</span><b>${esc(it.label)}</b></span></div>`   // button on top, text beneath
       :`<div class="tag"><span>${it.icon}</span><b>${esc(it.label)}</b>${ledHtml(it.id,it.c,it.label)}</div>`;
-    else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><span class="v" style="font-size:11px">${esc(it.label)}</span></div>`;
+    else if(it.type==='relay') inner=`${ledHtml(it.id,it.c,it.label)}<div class="tag"><b>${esc(it.label)}</b></div>`;
     else if(it.type==='temp') inner=`<button type="button" class="tag temp ${stale(d.updated)?'stale':''}" data-rh="${it.id}" aria-expanded="${showRH.has(it.id)}" title="Tap for humidity · ${ago(d.updated)}"><b>${esc(it.label)}</b><span class="v">${fmt(d.tC)}°</span>${rhSpan(it.id)}</button>`;
     else if(it.type==='tank') inner=tankHtml(it);
     else if(it.type==='mode'){const m=lightMode(), busy=pending[ID.bilge]||pending[ID.tankFwd];
@@ -456,7 +457,7 @@ function renderPlan(){
     else if(it.type==='running') inner=`<div class="tag"><b>${esc(it.label)}</b></div>`;   // label only: the lights themselves are drawn on the boat
     else if(it.type==='bilge'){const w=bilgeState();
       inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
-    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':d.kind?'var(--good)':'var(--muted)'}">${d.flood?'WATER!':d.kind?'Dry':'—'}</span></div>`;
+    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':d.kind||floodArmed?'var(--good)':'var(--muted)'}">${d.flood?'WATER!':d.kind?'Dry':floodArmed?'armed':'—'}</span></div>`;
     else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]), old=x.tC!=null&&stale(x.updated);
         return `<span class="v" ${old?`style="opacity:.6" title="Last reading ${ago(x.updated)} (weak signal from inside the box)"`:''}>${fmt(x.tC)}°${old?`<small style="font-size:9px;color:var(--faint)"> ${agoShort(Date.now()-x.updated)}</small>`:''}</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
       inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b>${t('refDown')}<b>Freezer</b>${t('frzDown')}</button>`;}
@@ -922,14 +923,14 @@ function deaden(R){
 const agoShort=ms=>ms<60e3?Math.round(ms/1e3)+'s':ms<3600e3?Math.round(ms/60e3)+'m':ms<864e5?Math.round(ms/3600e3)+'h':'>1d';
 function updateConn(){
   const c=$('#conn'), n=Object.keys(S.devices).length;
-  const cloudDown=!lastOk||Date.now()-lastOk>STALE_MS;   // short refusals (rate limit) are ridden through
-  const age=boatAge();
-  c.querySelector('span').textContent=n||'–';
+  const down=!lastOk||Date.now()-lastOk>STALE_MS;   // short refusals (rate limit) are ridden through
+  const age=boatAge(), net=!IN_APP||netOn;          // INTERNET whenever this phone is using it, even on the boat Wi-Fi
   const via=link==='local'?'Boat Wi-Fi':'Shelly Cloud';
-  c.classList.toggle('local',link==='local'&&!cloudDown);   // shows "Wi-Fi" in the pill: talking to the boat directly
-  if(cloudDown){ c.className='pill bad'; c.title=lastErr||'Shelly Cloud not reachable'; }
-  else if(age>STALE_MS){ c.className='pill'+(link==='local'?' local':''); c.title=`${via}: connected, but the boat has not reported for ${agoShort(age)}`; }
-  else { c.className='pill ok'+(link==='local'?' local':''); c.title=`${via} connected · ${n} devices · boat reported ${agoShort(age)} ago`; }
+  c.querySelector('span').textContent=down?'NO BOAT':net?'INTERNET':'WI-FI';
+  c.className='pill '+(down?'bad':net?'net':'ok');
+  c.title=down?(lastErr||'No data from the boat')
+    :age>STALE_MS?`${via}: connected, but the boat has not reported for ${agoShort(age)}`
+    :`${via} · ${n} devices · boat reported ${agoShort(age)} ago${net?' · using the internet':''}`;
 }
 
 // ---- boat Wi-Fi (local) link: only inside the ZORBA Android app ----
@@ -978,7 +979,7 @@ function btEntries(comps){ const by={};
 const lastLocal={};
 // The flood sensor sleeps and cannot be asked. Its own actions tell the bilge Shelly (KVS "zorba_flood" = wet / dry) over the
 // boat Wi-Fi, so water raises the alarm with no internet. There is no sign of life in between: "dry" is never shown from this.
-let floodWet=false;
+let floodWet=false, floodArmed=false;   // armed: the setup left its note ("armed"), or a dry message came
 async function localStatuses(){
   const out={}, btOut={}; let fresh=0;   // fresh: how many Shellys really answered this round (0 = not on the boat Wi-Fi)
   await Promise.all(Object.entries(localIp).map(async([id,ip])=>{
@@ -991,7 +992,7 @@ async function localStatuses(){
       } else s=await localRpc(ip,'Shelly.GetStatus',{},3000);
       s._updated=utcStr(Date.now()); s.cloud={...(s.cloud||{}),connected:true}; lastLocal[id]=s; out[id]=s; fresh++;
       // Shellys that hold Bluetooth sensors: read those too (kept from the last good round if this read fails)
-      if(id===ID.bilge){ try{ floodWet=(await localRpc(ip,'KVS.Get',{key:'zorba_flood'},3000)).value==='wet'; }catch(e){} }
+      if(id===ID.bilge){ try{ const v=(await localRpc(ip,'KVS.Get',{key:'zorba_flood'},3000)).value; floodWet=v==='wet'; floodArmed=v==='armed'||v==='dry'; }catch(e){} }
       if(BT_GATEWAYS.has(id)){ try{ lastLocal['bt:'+id]=btEntries(await localDynamic(ip,4000)); }catch(e){} }
     }catch(e){ if(lastLocal[id]) out[id]=lastLocal[id]; }
     if(BT_GATEWAYS.has(id)&&lastLocal['bt:'+id]) Object.assign(btOut,lastLocal['bt:'+id]);
@@ -1143,7 +1144,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-25.3';
+const BUILD='2026-11-26.1';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
