@@ -165,7 +165,7 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .mbtn.on{background:color-mix(in srgb,var(--q-yellow) 22%,#0b1218);border-color:var(--q-yellow);color:var(--q-yellow);box-shadow:0 0 8px color-mix(in srgb,var(--q-yellow) 45%,transparent)}
 .mbtn.busy{animation:pend 1s ease-in-out infinite}
 /* water tank gauge (like the KUS on board): 64 px dial = 4× a running-light dot, 8 lights: 2 red + 6 green */
-.tank{display:grid;justify-items:center;gap:3px;cursor:pointer}
+.tank{display:grid;justify-items:center;gap:3px;cursor:pointer;transform:scale(.9)}   /* owner 2026-11-26: 10 % smaller */
 .tank:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
 .tank .tlabel{font:600 11px var(--f-mono,inherit);letter-spacing:.08em;color:var(--q-yellow);text-shadow:0 1px 2px #000;background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:5px;padding:1px 6px;cursor:pointer}
 .tank .dial{position:relative;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2a2f33,#0c0f11 70%);
@@ -1167,7 +1167,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.8';
+const BUILD='2026-11-26.9';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
