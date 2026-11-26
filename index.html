@@ -68,6 +68,7 @@ html,body{overflow-x:hidden}
 #conn.net{color:var(--warn)} #conn.net i{background:var(--warn);box-shadow:0 0 6px var(--warn)}
 .quick{display:grid;gap:0;font-family:var(--f-display);font-weight:700;font-size:26px;line-height:1.05;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000,0 0 10px #000c;padding-left:2px}
 .ptop .quick span{font-family:var(--f-display);font-size:28px;font-weight:700;letter-spacing:.02em}
+.ptop .quick>span:not(.qage){zoom:.85}   /* owner 2026-11-26: battery and charging numbers 15 % smaller (units and icons with them) */
 #qAh{color:var(--fg)}
 /* stale: older than 50 s — grey, never mistaken for live */
 .quick.old span{color:#c3ccd2 !important;opacity:.55}
@@ -1176,7 +1177,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.11';
+const BUILD='2026-11-26.12';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
