@@ -180,6 +180,8 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tank .tq{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font:600 11px var(--f-mono);color:var(--faint)}
 /* "15" just outside the dial, beside the first red light (which sits at the lower left) */
 .tank .tlabel{white-space:nowrap}
+/* FWD: gallon number just outside each light (owner 2026-11-26) */
+.tank .tnum{position:absolute;transform:translate(-50%,-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000,0 0 3px #000;pointer-events:none;white-space:nowrap}
 .tank .tstep{position:absolute;left:-12px;top:76%;transform:translateY(-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000}
 .tank.off .dial{opacity:.45}
 .tank.idle .dial{opacity:.5}                 /* tank not connected now: last reading */
@@ -844,7 +846,8 @@ let tankSeen=null, tankSince=0;
 function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
-const TANK_LABEL={fwd:'FWD 120 gal',aft:'BACK 130 gal'};   // text above each gauge
+const TANK_LABEL={aft:'BACK 130 gal'};   // text above each gauge (FWD: none, owner 2026-11-26 — it has gallon numbers instead)
+const TANK_NUMS={fwd:['0','20','35','50','65','80','95','120']};   // FWD only: the number beside each light (owner 2026-11-26)
 const TANK_STEP={};                               // small number beside the first red light (none: FWD now by gallons)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
@@ -887,9 +890,12 @@ function tankHtml(it){
   const n=tankLights(k,v), off=v==null;
   const gal=TANK_GAL[k]&&n!=null?(n<=1?'empty (0–5 gal)':TANK_GAL[k][n-2]+' gal'):null;
   const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'+(gal?' · '+gal:'')}`;
-  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks"><b class="tlabel">${TANK_LABEL[k]}</b><div class="dial">${tankLeds(n,k)}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
+  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks">${TANK_LABEL[k]?`<b class="tlabel">${TANK_LABEL[k]}</b>`:''}<div class="dial">${tankLeds(n,k)}${TANK_NUMS[k]?tankNums(k):''}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
 }
 // like the KUS gauge on board: empty (0/8) = the first red light flashing; 1/8 = first red solid; …; 8/8 = all lit
+// numbers on the same arc as the lights, further out (just outside the dial's rim)
+function tankNums(k){ return TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+76*Math.sin(r), y=50-76*Math.cos(r);
+    return `<span class="tnum" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%">${TANK_NUMS[k][i]}</span>`;}).join(''); }
 function tankLeds(n,k){ const col=TANK_COLORS[k]||(i=>i<2?'red':'green'); return TANK_ANG.map((a,i)=>{const r=a*Math.PI/180, x=50+36*Math.sin(r), y=50-36*Math.cos(r);
     const lit=n!=null&&(i<n||(n===0&&i===0)), blink=n===0&&i===0;
     return `<i class="tl ${col(i)} ${lit?'on':''} ${blink?'blink':''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"></i>`;}).join(''); }
@@ -1154,7 +1160,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.4';
+const BUILD='2026-11-26.5';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
