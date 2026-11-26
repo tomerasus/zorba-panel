@@ -189,8 +189,9 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tank .tnum{position:absolute;transform:translate(-50%,-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000,0 0 3px #000;pointer-events:none;white-space:nowrap}
 .tank .tstep{position:absolute;left:-12px;top:76%;transform:translateY(-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000}
 .tank.off .dial{opacity:.45}
-.tank.idle .dial{opacity:.5}                 /* tank not connected now: last reading */
-.tank.idle .tlabel{opacity:.7;border-style:dashed}
+/* tank not connected now: its last reading, fully lit like the connected one (owner 2026-11-26) */
+/* the connected tank: a tiny LED in the middle of its waves */
+.tank .tlive{position:absolute;left:50%;top:60%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:#ffd23f;box-shadow:0 0 4px 2px #ffd23fcc;z-index:1}
 /* deck-plan items (lights, sensors, heater, fan, washing machine, bilge): yellow text; state colours (Dry, alarms) keep theirs */
 #items .tag,#items .tag b{color:var(--q-yellow)}
 #items .tag.alarm,#items .tag.alarm b{color:var(--bad)}
@@ -909,7 +910,7 @@ function tankHtml(it){
   const n=tankLights(k,v), off=v==null;
   const gal=TANK_GAL[k]&&n!=null?(n<=1?'empty (0–5 gal)':TANK_GAL[k][n-2]+' gal'):null;
   const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'+(gal?' · '+gal:'')}`;
-  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks">${TANK_LABEL[k]?`<b class="tlabel">${TANK_LABEL[k]}</b>`:''}<div class="dwrap">${TANK_NUMS[k]?`<div class="nums">${tankNums(k)}</div>`:''}<div class="dial">${tankLeds(n,k)}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div></div>`;
+  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks">${TANK_LABEL[k]?`<b class="tlabel">${TANK_LABEL[k]}</b>`:''}<div class="dwrap">${TANK_NUMS[k]?`<div class="nums">${tankNums(k)}</div>`:''}<div class="dial">${tankLeds(n,k)}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${live?'<span class="tlive" title="connected now"></span>':''}${n==null&&!off?'<span class="tq">?</span>':''}</div></div></div>`;
 }
 // like the KUS gauge on board: empty (0/8) = the first red light flashing; 1/8 = first red solid; …; 8/8 = all lit
 // numbers on the same arc as the lights, further out (just outside the dial's rim)
@@ -1179,7 +1180,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.16';
+const BUILD='2026-11-26.17';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
