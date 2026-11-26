@@ -181,6 +181,8 @@ button.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* "15" just outside the dial, beside the first red light (which sits at the lower left) */
 .tank .tlabel{white-space:nowrap}
 /* FWD: gallon number just outside each light (owner 2026-11-26) */
+.tank .dwrap{position:relative;width:64px;height:64px}
+.tank .nums{position:absolute;left:5px;top:5px;width:54px;height:54px;pointer-events:none}   /* same box as the lights inside the 5 px rim */
 .tank .tnum{position:absolute;transform:translate(-50%,-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000,0 0 3px #000;pointer-events:none;white-space:nowrap}
 .tank .tstep{position:absolute;left:-12px;top:76%;transform:translateY(-50%);font:600 9px var(--f-mono,monospace);color:var(--q-yellow);text-shadow:0 1px 2px #000}
 .tank.off .dial{opacity:.45}
@@ -286,11 +288,11 @@ tr:last-child td{border-bottom:0}
     </div>
     <div class="alertset">
       <h2 id="tankHead">Water tank</h2>
-      <p style="margin:0;color:var(--muted)">Calibrates the tank that is connected now (tap a gauge to swap between FWD and BACK). Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
+      <p id="tankIntro" style="margin:0;color:var(--muted)">Calibrates the tank that is connected now (tap a gauge to swap between FWD and BACK). Look at the real gauge and tap how many lights it shows. Each tap saves the current sender voltage for that number (on this phone). Two or more points make the ZORBA gauge follow the tank.</p>
       <div class="hint" id="tankLive"></div>
       <div id="tankBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="hint" id="tankPts"></div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="tankCopy">Copy calibration</button><button class="btn" type="button" id="tankReset">Back to built-in points</button><span class="hint" id="tankMsg"></span></div>
+      <div id="tankTools" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="tankCopy">Copy calibration</button><button class="btn" type="button" id="tankReset">Back to built-in points</button><span class="hint" id="tankMsg"></span></div>
       <textarea id="tankText" readonly hidden rows="2" style="width:100%;max-width:520px;font:11px var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px"></textarea>
     </div>
     <div class="alertset">
@@ -399,7 +401,7 @@ const ITEMS=[
  {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:70,y:91},
 ];
 // Built-in arrangement = the owner's S26 (copied 2026-11-16 via ⚙ → Layout → Copy). Overrides the x,y above.
-const DEFAULT_LAYOUT={"steam":{"x":46.7,"y":27.5},"mode":{"x":47.5,"y":35.8},"tankFwd":{"x":84.9,"y":19.9},"tankAft":{"x":85.3,"y":31.1},"running":{"x":47.2,"y":9.8},"anchor":{"x":47.3,"y":42},"deckBow":{"x":47.2,"y":20.2},"master":{"x":36.9,"y":82.1},"mainCabin":{"x":46.6,"y":52.7},"fridge":{"x":28.5,"y":64.5},"flood":{"x":45.1,"y":48.3},"engine":{"x":47,"y":57.7},"heater":{"x":30.2,"y":74.9},"fan":{"x":70,"y":70},"inverter":{"x":66.8,"y":62.6},"bilge":{"x":82.7,"y":11.5},"deckStern":{"x":51.6,"y":86.7}};
+const DEFAULT_LAYOUT={"steam":{"x":46.7,"y":27.5},"mode":{"x":47.5,"y":35.8},"tankFwd":{"x":84.9,"y":19.9},"tankAft":{"x":84.9,"y":31.1},"running":{"x":47.2,"y":9.8},"anchor":{"x":47.3,"y":42},"deckBow":{"x":47.2,"y":20.2},"master":{"x":36.9,"y":82.1},"mainCabin":{"x":46.6,"y":52.7},"fridge":{"x":28.5,"y":64.5},"flood":{"x":45.1,"y":48.3},"engine":{"x":47,"y":57.7},"heater":{"x":30.2,"y":74.9},"fan":{"x":70,"y":70},"inverter":{"x":66.8,"y":62.6},"bilge":{"x":82.7,"y":11.5},"deckStern":{"x":51.6,"y":86.7}};
 ITEMS.forEach(it=>{const p=DEFAULT_LAYOUT[it.key]; if(p){it.x=p.x; it.y=p.y;}});
 // Where each phone keeps its own arrangement. Changing this key makes every phone drop its saved
 // arrangement once and use the built-in one (2026-11-15 and again 2026-11-16, to give every phone the S26 layout).
@@ -848,8 +850,9 @@ let tankSeen=null, tankSince=0;
 function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) tankSince=Date.now(); tankSeen=k;
   return !!pending[ID.tankSel]||Date.now()-tankSince<10000; }
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
-const TANK_LABEL={aft:'BACK 130 gal'};   // text above each gauge (FWD: none, owner 2026-11-26 — it has gallon numbers instead)
-const TANK_NUMS={fwd:['0','20','35','50','65','80','95','120']};   // FWD only: the number beside each light (owner 2026-11-26)
+const TANK_LABEL={};   // no titles above the gauges (owner 2026-11-26): the numbers beside the lights say it
+const TANK_NUMS={fwd:Object.freeze(['0','20','35','50','65','80','95','120']),   // the number beside each light (owner 2026-11-26)
+  aft:['0','30','45','60','75','90','105','130']};                                  // BACK 130 gal: owner's numbers (labels only)
 const TANK_STEP={};                               // small number beside the first red light (none: FWD now by gallons)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
@@ -861,7 +864,9 @@ const tankCal=k=>store.get(TANKCAL+k,null)||TANK_CAL_DEFAULT[k]||[];
 // TANK_ON.fwd[n-1]. Each value sits between two of the sender's steps in the timed fill of 2026-11-17 (shelly\
 // tank-fill-2026-11-17.csv); the steps start at 5.4 / 20.5 / 35.6 / 52.0 / 64.6 / 78.9 / 94.6 gal, shown rounded to
 // 5 / 20 / 35 / 50 / 65 / 80 / 95. The sender doesn't move in the first ~5 gal and stops moving at ~95 gal (blue = 95 to full).
-const TANK_ON={fwd:[2.02,1.30,1.00,0.77,0.60,0.41,0.26]};
+// ██ FWD = GOLD STANDARD (owner 2026-11-26): never delete or change these numbers unless the owner says so in the chat
+// ██ with Shilla - never from app buttons. Master copy: shelly\FWD-TANK-CALIBRATION-GOLD\README.txt (read-only).
+const TANK_ON={fwd:Object.freeze([2.02,1.30,1.00,0.77,0.60,0.41,0.26])};
 const TANK_GAL={fwd:['5–20','20–35','35–50','50–65','65–80','80–95','95–120']};   // gallons while 1…7 of them are on
 const TANK_COLORS={fwd:i=>i===0?'red':i===7?'blue':'green'};                     // other tanks: 2 red + 6 green
 // BACK (owner 2026-11-26): "the same thing, ignore for now the 10 extra gal" — FWD's lights, gallons and voltages.
@@ -892,7 +897,7 @@ function tankHtml(it){
   const n=tankLights(k,v), off=v==null;
   const gal=TANK_GAL[k]&&n!=null?(n<=1?'empty (0–5 gal)':TANK_GAL[k][n-2]+' gal'):null;
   const tip=`${TANK_NAME[k]} water tank · ${live?'connected':'not connected'+(last?' · last reading '+ago(last.t):'')} · ${v==null?'no data':'sender '+fmt(v,2)+' V'} · ${n==null?'not calibrated here yet':n+' of 8 lights'+(gal?' · '+gal:'')}`;
-  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks">${TANK_LABEL[k]?`<b class="tlabel">${TANK_LABEL[k]}</b>`:''}<div class="dial">${tankLeds(n,k)}${TANK_NUMS[k]?tankNums(k):''}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div>`;
+  return `<div class="tank ${off?'off':''} ${live?'':'idle'}" role="button" tabindex="0" data-tankswap title="${tip} · tap to switch tanks">${TANK_LABEL[k]?`<b class="tlabel">${TANK_LABEL[k]}</b>`:''}<div class="dwrap">${TANK_NUMS[k]?`<div class="nums">${tankNums(k)}</div>`:''}<div class="dial">${tankLeds(n,k)}${TANK_STEP[k]?`<span class="tstep">${TANK_STEP[k]}</span>`:''}${WAVES}${n==null&&!off?'<span class="tq">?</span>':''}</div></div></div>`;
 }
 // like the KUS gauge on board: empty (0/8) = the first red light flashing; 1/8 = first red solid; …; 8/8 = all lit
 // numbers on the same arc as the lights, further out (just outside the dial's rim)
@@ -1162,7 +1167,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.7';
+const BUILD='2026-11-26.8';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -1208,15 +1213,19 @@ $('#layoutCopy').onclick=async()=>{
   try{await navigator.clipboard.writeText(txt); $('#layoutMsg').textContent='Copied. Paste it to Shilla.';}catch(e){}
 };
 // ⚙ → FWD water tank calibration
+const TANK_INTRO=$('#tankIntro').textContent;
 function renderTankCal(){
   const k=tankSel(), settling=tankSettling(), v=settling?null:dev(ID.tankFwd).v, n=tankLights(k,v), pts=tankCal(k).slice().sort((a,b)=>a.n-b.n);
   $('#tankHead').textContent=TANK_NAME[k]+' water tank'+(settling?' (switching…)':'');
   if(TANK_ON[k]){   // calibrated by a timed fill, in gallons: fixed switch voltages, nothing to tap
     $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ${n<=1?'empty (red only, 0–5 gal)':TANK_GAL[k][n-2]+' gal'}`;
-    $('#tankBtns').innerHTML='';
+    $('#tankBtns').innerHTML=''; $('#tankTools').hidden=true;
+    $('#tankIntro').textContent=k==='fwd'?'Fixed: the timed fill of 17 Nov (gold standard). It can only be changed by Shilla, on the owner\'s word - not from this app.'
+      :'Uses the FWD lights for now (BACK not measured yet). Changed only by Shilla.';
     $('#tankPts').textContent='Calibrated (timed fill): red always on, each green ≈ 15 gal, blue = full. On at or below: '+TANK_ON[k].map((x,i)=>`${i<6?'green '+(i+1):'blue'} ${x.toFixed(2)} V (${TANK_GAL[k][i]} gal)`).join(' · ');
     return;
   }
+  $('#tankTools').hidden=false; $('#tankIntro').textContent=TANK_INTRO;
   $('#tankLive').textContent=v==null?'Sender voltage: no data':`Sender voltage now: ${fmt(v,2)} V → ZORBA shows ${n==null?'?':n} of 8 lights`;
   $('#tankBtns').innerHTML=[0,1,2,3,4,5,6,7,8].map(k=>`<button class="btn" type="button" data-tankn="${k}" ${v==null?'disabled':''}>${k}</button>`).join('');
   $('#tankPts').textContent='Points: '+(pts.length?pts.map(p=>`${p.n} lights = ${fmt(p.v,2)} V`).join(' · '):'none');
