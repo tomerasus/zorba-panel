@@ -304,7 +304,7 @@ tr:last-child td{border-bottom:0}
     <div class="alertset">
       <h2>Layout</h2>
       <p style="margin:0;color:var(--muted)">Where the items sit on the deck plan is saved on this phone. Copy it to send it to Shilla, or go back to the built-in arrangement.</p>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="layoutCopy">Copy this phone's arrangement</button><button class="btn" type="button" id="layoutReset">Use the default arrangement</button><span class="hint" id="layoutMsg"></span></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="button" id="arrangeBtn">Move items on the deck plan</button><button class="btn" type="button" id="layoutCopy">Copy this phone's arrangement</button><button class="btn" type="button" id="layoutReset">Use the default arrangement</button><span class="hint" id="layoutMsg"></span></div>
       <textarea id="layoutText" readonly hidden rows="4" style="width:100%;max-width:520px;font:11px var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px"></textarea>
       <div class="hint" id="appVersion" style="margin-top:10px"></div>
     </div>
@@ -314,11 +314,11 @@ tr:last-child td{border-bottom:0}
   <section class="plansec" aria-label="Zorba deck plan">
     <div class="ptop">
       <div class="brand"><h1>ZORBA</h1><span class="pill" id="conn" title="Connecting to Shelly Cloud"><i></i><span>…</span></span><div id="quick" class="quick" hidden><span id="qSoc" title="House bank state of charge"></span><span id="qFlow" title="Battery current (A): + charging, − discharging"></span><span id="qAh" title="Ah left in the 1120 Ah house bank (1120 − consumed)"></span><span id="qAlt" title="Alternator DC-DC (Orion XS): output A into the house bank, input A from the alternator side" hidden></span><span id="qSol" title="Total solar charging current right now, all 4 chargers" hidden></span><span id="qSolDay" title="Solar accumulated today, all 4 chargers (Ah into the battery)" hidden></span><span id="qAge" class="qage" hidden></span><button type="button" id="graphBtn" class="qgraph" aria-label="Open the battery and solar graph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M4 16l5-6 4 3 7-8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Graph</button></div></div>
-      <div class="pbtns"><button class="pill iconbtn" id="netBtn" aria-pressed="false" aria-label="Internet" title="Internet" hidden><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3.5 6 3.5 9s-.5 6-3.5 9c-3-3-3.5-6-3.5-9s.5-6 3.5-9z"/></svg></button><button class="pill iconbtn" id="arrangeBtn" aria-pressed="false" aria-label="Arrange layout" title="Arrange layout"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="pbtns"><button class="pill iconbtn" id="netBtn" aria-pressed="false" aria-label="Internet" title="Internet" hidden><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3.5 6 3.5 9s-.5 6-3.5 9c-3-3-3.5-6-3.5-9s.5-6 3.5-9z"/></svg></button><button class="pill iconbtn" id="settingsBtn" aria-label="Settings" title="Settings" style="font-size:19px">⚙</button><button class="pill iconbtn" id="exitBtn" aria-label="Exit" title="Exit" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     </div>
     <div class="solarcol" id="solarL" aria-label="Port solar chargers"></div><div class="solarcol" id="solarR" aria-label="Starboard solar chargers"></div>
     <div id="alerts" role="alert" aria-live="assertive" hidden></div>
-    <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically.</span>
+    <span class="hint" id="planHint" hidden>Drag items to where they are aboard. Saved automatically. <button type="button" class="btn primary" id="arrangeDone" style="margin-left:8px;padding:4px 12px">Done</button></span>
     <div class="plan-scroll"><div class="plan" id="plan">
       <img src="zorbaabove.jpeg" alt="Zorba seen from above, bow up">
       <span class="sterntag">STERN</span><span class="bowtag">BOW</span>
@@ -459,8 +459,8 @@ function renderPlan(){
       inner=`<div class="tag modes">${b('anchor',ANCHOR,'Anchor mode: anchor light by schedule')}${b('sail',SAILBOAT,'Sailing mode: running lights by schedule')}${b('off','<span>OFF</span>','Off: all light schedules off')}</div>`;}
     else if(it.type==='running') inner=`<div class="tag"><b>${esc(it.label)}</b></div>`;   // label only: the lights themselves are drawn on the boat
     else if(it.type==='bilge'){const w=bilgeState();
-      inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'Dry':'—'}</span></div>`;}
-    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':d.kind||floodArmed?'var(--good)':'var(--muted)'}">${d.flood?'WATER!':d.kind?'Dry':floodArmed?'armed':'—'}</span></div>`;
+      inner=`<div class="tag ${w==='wet'?'alarm':''}" title="Bilge alarm (float switch)${w==='unknown'?' · offline / no data':''}">${sirenSvg(w)}<b>${esc(it.label)}</b><span class="v" style="color:${w==='wet'?'var(--bad)':w==='dry'?'var(--good)':'var(--faint)'}">${w==='wet'?'WATER!':w==='dry'?'':'—'}</span></div>`;}
+    else if(it.type==='flood') inner=`<div class="tag ${d.flood?'alarm':''}" title="${esc(d.name)}"><b>${esc(it.label)}</b><span class="v" style="color:${d.flood?'var(--bad)':'var(--good)'}">${d.flood?'WATER!':'Dry'}</span></div>`;
     else if(it.type==='fridge'){const t=k=>{const x=dev(ID[k]), old=x.tC!=null&&stale(x.updated);
         return `<span class="v" ${old?`style="opacity:.6" title="Last reading ${ago(x.updated)} (weak signal from inside the box)"`:''}>${fmt(x.tC)}°${old?`<small style="font-size:9px;color:var(--faint)"> ${agoShort(Date.now()-x.updated)}</small>`:''}</span>${rhSpan(ID[k],'fridge')||'<span></span>'}`};
       inner=`${ledHtml(it.id,it.c,it.label)}<button type="button" class="tag fridge" data-rh="fridge" aria-expanded="${showRH.has('fridge')}" title="Tap for humidity"><b>Fridge</b>${t('refDown')}<b>Freezer</b>${t('frzDown')}</button>`;}
@@ -1160,7 +1160,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.5';
+const BUILD='2026-11-26.6';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
@@ -1182,8 +1182,10 @@ document.addEventListener('click',e=>{
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,5000)}
 
 // ---- arrange (drag items to their real place aboard) ----
-$('#arrangeBtn').onclick=()=>{arranging=!arranging;$('#arrangeBtn').setAttribute('aria-pressed',arranging);$('#arrangeBtn').title=arranging?'Done arranging':'Arrange layout';
-  $('#plan').classList.toggle('arrange',arranging);$('#planHint').hidden=!arranging;};
+// arranging starts from ⚙ → Layout (owner 2026-11-26: no move button on the dashboard) and ends with Done
+function setArrange(on){ arranging=on; $('#plan').classList.toggle('arrange',on); $('#planHint').hidden=!on; }
+$('#arrangeBtn').onclick=()=>{ $('#setup').hidden=true; setArrange(true); window.scrollTo(0,0); };
+$('#arrangeDone').onclick=()=>setArrange(false);
 $('#plan').addEventListener('pointerdown',e=>{
   if(!arranging) return; const el=e.target.closest('.item'); if(!el) return;
   e.preventDefault(); dragging={el,key:el.dataset.key}; el.setPointerCapture(e.pointerId);
