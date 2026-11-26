@@ -59,7 +59,7 @@ html,body{overflow-x:hidden}
 .ptop{position:absolute;z-index:6;top:calc(10px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
 .ptop>*{pointer-events:auto}
 .ptop .brand{display:grid;gap:6px;justify-items:start}
-.ptop .brand h1{font-size:30px;text-shadow:0 1px 8px #000c}
+.ptop .brand h1{font-size:40px;text-shadow:0 1px 8px #000c}   /* owner 2026-11-26: bigger, in proportion (was 30px) */
 .ptop .pill{background:color-mix(in srgb,var(--bg) 80%,transparent)}
 .pbtns{display:flex;gap:6px}
 .iconbtn{width:34px;height:34px;padding:0;justify-content:center;font-size:16px;letter-spacing:0}
@@ -1177,7 +1177,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.12';
+const BUILD='2026-11-26.13';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
