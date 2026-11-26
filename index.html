@@ -859,6 +859,10 @@ const tankCal=k=>store.get(TANKCAL+k,null)||TANK_CAL_DEFAULT[k]||[];
 const TANK_ON={fwd:[2.02,1.30,1.00,0.77,0.60,0.41,0.26]};
 const TANK_GAL={fwd:['5–20','20–35','35–50','50–65','65–80','80–95','95–120']};   // gallons while 1…7 of them are on
 const TANK_COLORS={fwd:i=>i===0?'red':i===7?'blue':'green'};                     // other tanks: 2 red + 6 green
+// BACK (owner 2026-11-26): "the same thing, ignore for now the 10 extra gal" — FWD's lights, gallons and voltages.
+// NOT measured on BACK: its sender reads 0.06–0.07 V when full (FWD 0.23–0.24), so the middle lights are a guess
+// until a timed BACK fill is done.
+TANK_ON.aft=TANK_ON.fwd; TANK_GAL.aft=TANK_GAL.fwd; TANK_COLORS.aft=TANK_COLORS.fwd;
 function tankLights(k,v){
   if(v==null) return null;
   const g=TANK_ON[k];
@@ -1150,7 +1154,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.3';
+const BUILD='2026-11-26.4';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
