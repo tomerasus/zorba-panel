@@ -383,6 +383,8 @@ const ITEMS=[
  {key:'tankFwd',type:'tank',id:ID.tankFwd,label:'FWD',tank:'fwd',x:30,y:40},
  // back (aft) water tank: same Add-on, read when "Switch to back water tank" is on; otherwise shows its last reading
  {key:'tankAft',type:'tank',id:ID.tankFwd,label:'BACK',tank:'aft',x:84.9,y:32},
+ // fuel tank (owner 2026-11-26): prepared, NOT connected yet (last spare Plus Add-on) - shows full until then
+ {key:'fuel',type:'tank',label:'FUEL',tank:'fuel',x:15,y:35},   // FWD's height would cover the battery numbers
  // running lights (port red, starboard green, stern white): their own Shelly "Running lights"
  {key:'running',type:'running',id:ID.running,label:'Running lights',x:50,y:9},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true, below:true},
@@ -401,7 +403,7 @@ const ITEMS=[
  {key:'deckStern',type:'relay',id:ID.deckStern,label:'Stern + searchlight',c:'var(--white)',x:70,y:91},
 ];
 // Built-in arrangement = the owner's S26 (copied 2026-11-16 via ⚙ → Layout → Copy). Overrides the x,y above.
-const DEFAULT_LAYOUT={"steam":{"x":46.7,"y":27.5},"mode":{"x":47.5,"y":35.8},"tankFwd":{"x":84.9,"y":19.9},"tankAft":{"x":84.9,"y":31.1},"running":{"x":47.2,"y":9.8},"anchor":{"x":47.3,"y":42},"deckBow":{"x":47.2,"y":20.2},"master":{"x":36.9,"y":82.1},"mainCabin":{"x":46.6,"y":52.7},"fridge":{"x":28.5,"y":64.5},"flood":{"x":45.1,"y":48.3},"engine":{"x":47,"y":57.7},"heater":{"x":30.2,"y":74.9},"fan":{"x":70,"y":70},"inverter":{"x":66.8,"y":62.6},"bilge":{"x":82.7,"y":11.5},"deckStern":{"x":51.6,"y":86.7}};
+const DEFAULT_LAYOUT={"steam":{"x":46.7,"y":27.5},"mode":{"x":47.5,"y":35.8},"tankFwd":{"x":84.9,"y":19.9},"tankAft":{"x":84.9,"y":31.1},"running":{"x":47.2,"y":9.8},"anchor":{"x":47.3,"y":42},"deckBow":{"x":47.2,"y":20.2},"master":{"x":36.9,"y":82.1},"mainCabin":{"x":46.6,"y":52.7},"fridge":{"x":28.5,"y":64.5},"flood":{"x":45.1,"y":48.3},"engine":{"x":47,"y":57.7},"heater":{"x":30.2,"y":74.9},"fan":{"x":70,"y":70},"inverter":{"x":66.8,"y":62.6},"bilge":{"x":82.7,"y":11.5},"deckStern":{"x":51.6,"y":86.7},"fuel":{"x":15,"y":35}};
 ITEMS.forEach(it=>{const p=DEFAULT_LAYOUT[it.key]; if(p){it.x=p.x; it.y=p.y;}});
 // Where each phone keeps its own arrangement. Changing this key makes every phone drop its saved
 // arrangement once and use the built-in one (2026-11-15 and again 2026-11-16, to give every phone the S26 layout).
@@ -852,7 +854,8 @@ function tankSettling(){ const k=tankSel(); if(tankSeen!==null&&k!==tankSeen) ta
 const TANK_NAME={fwd:'FWD',aft:'BACK'};
 const TANK_LABEL={};   // no titles above the gauges (owner 2026-11-26): the numbers beside the lights say it
 const TANK_NUMS={fwd:Object.freeze(['0','20','35','50','65','80','95','120']),   // the number beside each light (owner 2026-11-26)
-  aft:['0','30','45','60','75','90','105','130']};                                  // BACK 130 gal: owner's numbers (labels only)
+  aft:['0','30','45','60','75','90','105','130'],
+  fuel:['15','35','50','70','90','110','125','145']};                               // fuel: red 15, blue 145 (owner); greens spread evenly (Shilla's pick, not confirmed)                                  // BACK 130 gal: owner's numbers (labels only)
 const TANK_STEP={};                               // small number beside the first red light (none: FWD now by gallons)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
@@ -873,6 +876,7 @@ const TANK_COLORS={fwd:i=>i===0?'red':i===7?'blue':'green'};                    
 // NOT measured on BACK: its sender reads 0.06–0.07 V when full (FWD 0.23–0.24), so the middle lights are a guess
 // until a timed BACK fill is done.
 TANK_ON.aft=TANK_ON.fwd; TANK_GAL.aft=TANK_GAL.fwd; TANK_COLORS.aft=TANK_COLORS.fwd;
+TANK_COLORS.fuel=TANK_COLORS.fwd;   // fuel: same lights; no sender yet
 function tankLights(k,v){
   if(v==null) return null;
   const g=TANK_ON[k];
@@ -889,8 +893,13 @@ function tankLights(k,v){
 // so the first red and the last green are at the same height (compass degrees, evenly spaced)
 const TANK_ANG=Array.from({length:8},(_,i)=>(235+i*250/7)%360);
 const WAVES='<svg class="waves" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 4c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const PUMP='<svg class="waves" viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M7 7h6v4H7zM15 9h2l2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// fuel gauge: no sender yet, so it shows full (all 8 lit) and is not a tank-swap button
+function fuelHtml(it){ const k=it.tank;
+  return `<div class="tank" title="Fuel tank · not connected yet: shows full until its sender is wired"><div class="dwrap"><div class="nums">${tankNums(k)}</div><div class="dial">${tankLeds(8,k)}${PUMP}</div></div></div>`; }
 // each tank's gauge: live while its tank is connected, otherwise its last reading (kept on this phone), dimmed
 function tankHtml(it){
+  if(it.tank==='fuel') return fuelHtml(it);
   const k=it.tank, d=dev(it.id), live=tankSel()===k&&!tankSettling();
   if(live&&d.v!=null){const l=store.get('tanklast-'+k,null); if(!l||l.v!==d.v||Date.now()-l.t>60e3) store.set('tanklast-'+k,{v:d.v,t:Date.now()});}
   const last=live?null:store.get('tanklast-'+k,null), v=live?d.v:(last?last.v:null);
@@ -1167,7 +1176,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.9';
+const BUILD='2026-11-26.10';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
