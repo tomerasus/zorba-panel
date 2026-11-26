@@ -855,7 +855,7 @@ const TANK_NAME={fwd:'FWD',aft:'BACK'};
 const TANK_LABEL={};   // no titles above the gauges (owner 2026-11-26): the numbers beside the lights say it
 const TANK_NUMS={fwd:Object.freeze(['0','20','35','50','65','80','95','120']),   // the number beside each light (owner 2026-11-26)
   aft:['0','30','45','60','75','90','105','130'],
-  fuel:['15','35','50','70','90','110','125','145']};                               // fuel: red 15, blue 145 (owner); greens spread evenly (Shilla's pick, not confirmed)                                  // BACK 130 gal: owner's numbers (labels only)
+  fuel:['15','25','45','65','85','105','125','145']};                              // fuel (owner 2026-11-26): red 15, greens 25…125, blue 145
 const TANK_STEP={};                               // small number beside the first red light (none: FWD now by gallons)
 // per-phone points are stored under TANKCAL+k; the prefix changed on 2026-11-17 so every phone drops points
 // tapped before the fill calibration and uses the built-in ones
@@ -1176,7 +1176,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.10';
+const BUILD='2026-11-26.11';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
