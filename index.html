@@ -278,16 +278,8 @@ tr:last-child td{border-bottom:0}
 <body>
 <div class="wrap">
   <section id="setup" class="victron" hidden>
-    <h2>Connect to Shelly Cloud</h2>
-    <p style="margin:0;max-width:62ch;color:var(--muted)">In the Shelly app open <b>User settings → Authorization cloud key</b>. Copy the key and the server address here. They are saved only in this phone's browser.</p>
-    <form id="setupForm" style="display:grid;gap:10px;max-width:520px">
-      <label style="display:grid;gap:4px"><span class="hint">Server address</span><input id="cfgServer" class="btn" style="text-align:left;cursor:text" placeholder="https://shelly-XX-eu.shelly.cloud" autocomplete="off" required></label>
-      <label style="display:grid;gap:4px"><span class="hint">Authorization cloud key</span><input id="cfgKey" class="btn" style="text-align:left;cursor:text" type="password" autocomplete="off" required></label>
-      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="submit">Connect</button><button class="btn" type="button" id="cfgForget">Forget key on this phone</button><button class="btn" type="button" id="cfgClose">Close</button></div>
-      <span class="hint" id="cfgMsg"></span>
-    </form>
-    <div class="alertset">
-      <h2>Alerts</h2>
+    <div class="alertset" style="border-top:0;padding-top:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Alerts</h2><button class="btn" type="button" id="setupClose">Close</button></div>
       <p style="margin:0;color:var(--muted)">Switch each alert on or off and set its limit. Saved on this phone only.</p>
       <div id="alertRows"></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="alertReset">Reset to defaults</button><span class="hint" id="alertMsg"></span></div>
@@ -307,6 +299,16 @@ tr:last-child td{border-bottom:0}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="button" id="arrangeBtn">Move items on the deck plan</button><button class="btn" type="button" id="layoutCopy">Copy this phone's arrangement</button><button class="btn" type="button" id="layoutReset">Use the default arrangement</button><span class="hint" id="layoutMsg"></span></div>
       <textarea id="layoutText" readonly hidden rows="4" style="width:100%;max-width:520px;font:11px var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px"></textarea>
       <div class="hint" id="appVersion" style="margin-top:10px"></div>
+    </div>
+    <div class="alertset" id="connectSet">   <!-- owner 2026-11-26: Settings starts with Alerts; the Shelly Cloud key is last -->
+      <h2>Connect to Shelly Cloud</h2>
+      <p style="margin:0;max-width:62ch;color:var(--muted)">In the Shelly app open <b>User settings → Authorization cloud key</b>. Copy the key and the server address here. They are saved only in this phone's browser.</p>
+      <form id="setupForm" style="display:grid;gap:10px;max-width:520px">
+        <label style="display:grid;gap:4px"><span class="hint">Server address</span><input id="cfgServer" class="btn" style="text-align:left;cursor:text" placeholder="https://shelly-XX-eu.shelly.cloud" autocomplete="off" required></label>
+        <label style="display:grid;gap:4px"><span class="hint">Authorization cloud key</span><input id="cfgKey" class="btn" style="text-align:left;cursor:text" type="password" autocomplete="off" required></label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="submit">Connect</button><button class="btn" type="button" id="cfgForget">Forget key on this phone</button><button class="btn" type="button" id="cfgClose">Close</button></div>
+        <span class="hint" id="cfgMsg"></span>
+      </form>
     </div>
   </section>
 
@@ -1080,7 +1082,7 @@ function learnIps(st){ let ch=false; for(const id of Object.keys(LOCAL_IP_DEFAUL
 names=store.get('names',{});
 // The app also needs the key: the Bluetooth temperature/flood sensors and use away from the boat go through
 // Shelly Cloud — so it asks for it too (it can be closed and used on the boat Wi-Fi without one)
-function start(){ $('#setup').hidden=!!CFG; if(!CFG&&NATIVE) $('#cfgMsg').textContent='In the app the key is needed for the temperature sensors and for use away from the boat. Close to use the boat Wi-Fi only.';
+function start(){ $('#setup').hidden=!!CFG; if(!CFG) requestAnimationFrame(()=>$('#connectSet').scrollIntoView({block:'start'})); if(!CFG&&NATIVE) $('#cfgMsg').textContent='In the app the key is needed for the temperature sensors and for use away from the boat. Close to use the boat Wi-Fi only.';
   if(CFG||NATIVE){refresh();} else {const c=$('#conn');c.className='pill bad';c.querySelector('span').textContent='–';c.title='Not connected: tap ⚙ to enter the Shelly key';render();} }
 setInterval(refresh,5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) refresh()});
@@ -1103,8 +1105,8 @@ $('#netBarBtn').onclick=()=>setNet(!netOn);
 renderNet();
 
 // ---- settings ----
-$('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});$('#cfgServer').focus({preventScroll:true})};
-$('#cfgClose').onclick=()=>{if(CFG||NATIVE) $('#setup').hidden=true;};   // the app works on the boat Wi-Fi even without a key
+$('#settingsBtn').onclick=()=>{$('#setup').hidden=false;$('#cfgServer').value=CFG?.server||'';$('#cfgKey').value='';$('#cfgMsg').textContent=CFG?'Connected. Enter a new key only to replace it.':'';$('#setup').scrollIntoView({block:'start'});};
+$('#cfgClose').onclick=$('#setupClose').onclick=()=>{if(CFG||NATIVE) $('#setup').hidden=true;};   // the app works on the boat Wi-Fi even without a key
 $('#settingsBtn').addEventListener('click',()=>{renderAlertSettings();$('#alertMsg').textContent='';});
 $('#alertReset').onclick=()=>{store.del('alerts'); loadAlertSettings(); renderAlertSettings(); acked.clear(); renderAlerts(); $('#alertMsg').textContent='Defaults restored.';};$('#cfgForget').onclick=()=>{store.del('cfg');CFG=null;R=null;S={devices:{},bmv:null,history:hist};$('#cfgMsg').textContent='Key removed from this phone.';start();$('#setup').hidden=false;};
 $('#setupForm').addEventListener('submit',async e=>{
@@ -1160,7 +1162,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.6';
+const BUILD='2026-11-26.7';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
