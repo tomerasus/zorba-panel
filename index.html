@@ -64,7 +64,7 @@ html,body{overflow-x:hidden}
 .pbtns{display:flex;gap:6px}
 .iconbtn{width:34px;height:34px;padding:0;justify-content:center;font-size:16px;letter-spacing:0}
 #conn{font-size:13px;color:var(--fg)}
-.ptop #conn{height:24px;min-width:70px;padding:0 8px;box-sizing:border-box;gap:6px;justify-content:center}   /* owner 2026-11-26: same size as the Bilge label */
+.ptop #conn{height:24px;width:86px;padding:0 8px;box-sizing:border-box;gap:6px;justify-content:center}   /* owner 2026-11-26: Bilge label's height; fixed width (fits INTERNET) so nothing moves when the word changes */
 .ptop #conn span{font-size:11px;letter-spacing:.06em}
 /* connection word (owner 2026-11-25): WI-FI = boat Wi-Fi only (free) · INTERNET = costs money · NO BOAT = no data */
 #conn.net{color:var(--warn)} #conn.net i{background:var(--warn);box-shadow:0 0 6px var(--warn)}
@@ -1179,7 +1179,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.14';
+const BUILD='2026-11-26.15';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
