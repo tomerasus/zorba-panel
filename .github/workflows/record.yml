@@ -1,5 +1,6 @@
 # Records Zorba's battery and solar every 10 minutes into history.json on the "data" branch,
 # so ZORBA can draw a 24 h / 7 day graph even when no phone has the app open.
+# Also writes latest.json (a full snapshot of the readings) on every run; "Run workflow" refreshes it on demand.
 # GitHub may start scheduled runs a few minutes late; the graph uses each row's real time.
 name: Record boat history
 
@@ -41,6 +42,6 @@ jobs:
           cd data
           git config user.name "zorba-recorder"
           git config user.email "zorba-recorder@users.noreply.github.com"
-          git add history.json
+          git add history.json latest.json
           git commit -q --amend -m "Zorba history" 2>/dev/null || git commit -q -m "Zorba history"
           git push -q --force origin data
