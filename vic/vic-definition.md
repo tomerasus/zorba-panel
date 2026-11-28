@@ -56,6 +56,18 @@ ECO-WORTHY support (as relayed on the Victron forum) says 14.6 V absorption and 
 **Owner's decision (2026-11-28): keep the current LiFePO4 settings. They work well and the BMS has never tripped.**
 Vic does not change them. Next step: write down the current values of each charger here, for the record.
 
+## How Vic reads the boat (set up 2026-11-28)
+- `data` branch, `history.json`: one row every 10 min, 7 days: [time, SoC %, battery A, solar A, Ah left,
+  solar Ah today, alternator A, fuel sender V].
+- `data` branch, `latest.json`: full snapshot (battery, each solar charger, Orion, water/fuel senders, bilge,
+  relays, temperatures, offline devices). Refreshed by the recorder workflow (`.github/workflows/record.yml`).
+- Fresh data on demand: run the workflow "Record boat history" (workflow_dispatch), wait ~1 min, read latest.json.
+  Read-only: the recorder cannot switch anything. The Shelly key stays in GitHub secrets.
+- Relay names are the app's ID names: `bilge` relay = anchor-light MODE, `tankFwd` relay = sail-light MODE (nothing
+  wired to them), `tankSel` = which water tank the sender reads (on = back).
+- Solar charger order (1–4) is the Shelly "Mppt" script's order. Which are arch and which deck: to confirm
+  (first snapshot: chargers 1 and 3 made less yesterday, 0.28 and 0.38 kWh vs 0.61 and 0.53).
+
 ## Big 120 V loads (all through the Quattro)
 | Load | How used | Rough draw (to measure) |
 |------|----------|--------------------------|
@@ -133,3 +145,4 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
   output). Owner says a generator limit with margin "will trip the fuse" (to clarify).
 - 2026-11-28 (later): Panel label read: Renogy RSP200D (Voc 27 V, Vmp 22.6 V, Isc 9.66 A). Series-doubling idea checked.
 - 2026-11-28 (later): Deck panel label read: also RSP200D, but Voc 23 V, Vmp 19.2 V, Isc 11.05 A. Low-voltage headroom noted.
+- 2026-11-28 (later): Live data set up: recorder writes latest.json; Vic can trigger it on demand. First snapshot read OK.
