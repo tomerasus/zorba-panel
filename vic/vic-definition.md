@@ -76,7 +76,7 @@ Relay: mode default, not inverted, min closed 0 m, off delay 0 m · low SoC 5 % 
 11.5 V · high V 14.8 / clear 14.7 V. (What is the relay wired to? To confirm.)
 **SmartSolar MPPT 100/30 (one shown):** 12 V · max 30 A · charger enabled · preset user defined · expert mode off ·
 absorption 14.40 V · float 13.50 V · equalization disabled · temperature compensation disabled · low-temperature
-cut-off 5 °C. (Other three MPPTs: assumed the same, to confirm.)
+cut-off 5 °C. (All four MPPTs have the same settings, owner confirmed.)
 **Orion XS 12/12-70:** function charger · **charger DISABLED** · input current 40 A · output current 40 A ·
 input voltage lock-out 12.5 V / restart 12.8 V. Battery settings not visible while disabled.
 **Quattro / MultiPlus:** no screenshots yet.
@@ -87,8 +87,8 @@ input voltage lock-out 12.5 V / restart 12.8 V. Battery settings not visible whi
    above 14.4 V, the BMV never synchronises and the SoC drifts. Last 7 days: highest SoC 94.4 %, never 100 %.
    Usual Victron practice: charged voltage about 0.2 V below the lowest absorption voltage (here ~14.2 V).
    This is a BMV monitor setting, not a battery charge setting. Owner to decide.
-2. **Orion XS charger is disabled.** That explains alternator 0 A all week. Also limited to 40 A, not 70 A.
-   Owner: intentional? (alternator size?)
+2. **Orion XS charger is disabled on purpose** (owner): switched on only when needed, because left on it drains
+   1–2 A from the AGMs. Limit 40 A. Alternator size: still unknown.
 
  (all through the Quattro)
 | Load | How used | Rough draw (to measure) |
@@ -170,3 +170,5 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
 - 2026-11-28 (later): Live data set up: recorder writes latest.json; Vic can trigger it on demand. First snapshot read OK.
 - 2026-11-28 (later): Recorder change merged to main (scheduled runs now write latest.json). Owner sent BMV, MPPT
   and Orion settings. Found: BMV charged voltage 14.5 V > absorption 14.4 V; Orion charger disabled, 40 A limit.
+- 2026-11-28 (later): Orion off on purpose; fridge runs on a schedule 3 times a day; all MPPTs set the same. Quattro
+  settings next, by MK3-USB on the laptop (screenshots, and a saved settings file as a backup).
