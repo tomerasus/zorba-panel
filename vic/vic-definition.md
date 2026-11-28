@@ -33,7 +33,7 @@ Westerbeke generator.
 | **Engine bank** | 2 × AGM 210 Ah. Charged only by the alternator. Nothing charges it at anchor. |
 | **Generator** | Westerbeke 5.0 BCDB, 60 Hz, -614, 120 V, 1800 rpm. **Rated 41.6 A** (data plate, owner 2026-11-28). Proposed Quattro generator input limit ≈ 35 A (~85 %). |
 | **Water heater** | Electric element plus engine heat. |
-| **Victron Lynx** | All four house batteries connect through a Lynx busbar system. **Lynx Distributor** (owner, 2026-11-28): no Bluetooth, one fuse per battery. Fuses are 100 A or 200 A, owner will check. **If 100 A: too small.** A full Quattro load (~350–400 A) is ~90–100 A per battery: one fuse blows, the other three carry more and blow in a cascade. |
+| **Victron Lynx** | All four house batteries connect through a Lynx busbar system. **Lynx Distributor** (owner, 2026-11-28): no Bluetooth, one fuse per battery. **Fuses: 200 A each** (owner 2026-11-28). OK for a full Quattro load (~90–100 A per battery). |
 
 **Bluetooth:** every Victron unit has Bluetooth except the MultiPlus Compact.
 **Links:** everything is in the VictronConnect app. The ZORBA app reads the BMV, the 4 MPPTs and the Orion XS
@@ -53,7 +53,8 @@ ECO-WORTHY support (as relayed on the Victron forum) says 14.6 V absorption and 
 4 MPPTs, Orion XS), the same values on all:
 - Absorption 14.2 V, short fixed absorption time (~1 h), float 13.5 V, no temperature compensation.
 - Re-bulk / storage settings and the Quattro's low-DC shutdown: to set together, after checking the manuals.
-Owner to decide.
+**Owner's decision (2026-11-28): keep the current LiFePO4 settings. They work well and the BMS has never tripped.**
+Vic does not change them. Next step: write down the current values of each charger here, for the record.
 
 ## Big 120 V loads (all through the Quattro)
 | Load | How used | Rough draw (to measure) |
@@ -104,7 +105,6 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
    day Zorba uses, compared with what the solar makes.
 
 ## Open questions for the owner
-- Lynx fuse size (100 A or 200 A).
 - Photo of the Quattro's AC output terminals and wiring (AC-out-1 / AC-out-2 question).
 - Panel label: Voc / Vmp (confirm the "24V" 16BB model). Owner will send a photo.
 - Is the Quattro's 4 A starter-battery output wired to the AGMs?
@@ -120,3 +120,6 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
 - 2026-11-28 (later): The Lynx is a Lynx Distributor. The owner OK'd saving: this file is now in the repo (branch ccr-7c41413f-6o3133, folder vic/).
 - 2026-11-28 (later): Westerbeke 5.0 BCDB 60 Hz -614, rated 41.6 A. MK3-USB is on board. Owner says all loads are on
   Quattro AC-out-2 (to verify). Lynx fuses 100 A or 200 A (owner checking). Charge voltages proposed (14.2 / 13.5 V).
+- 2026-11-28 (later): Lynx fuses are 200 A (OK). Owner keeps the current LiFePO4 charge settings. Owner says the Quattro
+  is wired "in 1, out 2" (to clarify: the boat runs on inverter at anchor, so the loads must be on the always-on
+  output). Owner says a generator limit with margin "will trip the fuse" (to clarify).
