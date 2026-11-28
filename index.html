@@ -373,7 +373,7 @@ const SAILBOAT='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 2.5v13
 const PROP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.4"/><path d="M12 9.6C10.6 6.5 11 3 12.6 2.2c1.7-.7 2.6 2.7 .4 7.6z"/><path d="M14.1 13.2c3.4.3 6.2 2.4 6 4.2-.3 1.8-3.7.9-6.8-3.4z"/><path d="M9.9 13.2c-2 2.8-5.2 4.1-6.6 3-1.5-1.1 1-3.6 6.3-4.2z"/></svg>';
 
 // Shelly device ids on Zorba
-const ID={tankSel:'acebe6f5d2a0',tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',blower:'acebe6f5ac5c',
+const ID={tankSel:'acebe6f5d2a0',tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',blower:'acebe6f5ac5c',fuelSh:'e8f60a7a7d34',
   refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',flood:'d885acea5d1c',engine:'XB211299198447892'};
 const MAST={x:47,y:40.5};
 
@@ -389,7 +389,7 @@ const ITEMS=[
  // back (aft) water tank: same Add-on, read when "Switch to back water tank" is on; otherwise shows its last reading
  {key:'tankAft',type:'tank',id:ID.tankFwd,label:'BACK',tank:'aft',x:84.9,y:32},
  // fuel tank (owner 2026-11-26): prepared, NOT connected yet (last spare Plus Add-on) - shows full until then
- {key:'fuel',type:'tank',label:'FUEL',tank:'fuel',x:15,y:35},   // FWD's height would cover the battery numbers
+ {key:'fuel',type:'tank',id:ID.fuelSh,label:'FUEL',tank:'fuel',x:15,y:35},   // FWD's height would cover the battery numbers
  // running lights (port red, starboard green, stern white): their own Shelly "Running lights"
  {key:'running',type:'running',id:ID.running,label:'Running lights',x:50,y:9},
  {key:'anchor',type:'chip', id:ID.anchor,label:'Anchor', icon:ANCHOR, c:'var(--white)', x:19,y:33, mast:true, below:true},
@@ -671,7 +671,7 @@ function shape(st){
     // The Shelly's own x*3 value (xvoltage) is finer than raw×3 (raw is rounded to 0.01 V = 0.03 V on the sender) and
     // the fill calibration was measured with it — use it while it agrees with raw×3 (i.e. the formula is still x*3).
     if(s['voltmeter:100']){d.kind='tank'; const vm=s['voltmeter:100'], r3=vm.voltage!=null?vm.voltage*3:null;
-      d.v=r3==null?null:+((vm.xvoltage!=null&&Math.abs(vm.xvoltage-r3)<=0.05)?vm.xvoltage:r3).toFixed(2); d.xv=vm.xvoltage??null;}
+      d.raw=vm.voltage??null; d.v=r3==null?null:+((vm.xvoltage!=null&&Math.abs(vm.xvoltage-r3)<=0.05)?vm.xvoltage:r3).toFixed(2); d.xv=vm.xvoltage??null;}
     if(id===ID.bilge){d.kind='bilge';d.input=typeof s['input:0']?.state==='boolean'?s['input:0'].state:null;}
     if(s['devicepower:0']?.battery) d.battery=s['devicepower:0'].battery.percent??null;
     devices[id]=d;
@@ -899,9 +899,12 @@ function tankLights(k,v){
 const TANK_ANG=Array.from({length:8},(_,i)=>(235+i*250/7)%360);
 const WAVES='<svg class="waves" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 4c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1M2 14c2.5-2 5-2 7.5 0s5 2 7.5 0 4-1.5 5-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 const PUMP='<svg class="waves" viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M7 7h6v4H7zM15 9h2l2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-// fuel gauge: no sender yet, so it shows full (all 8 lit) and is not a tank-swap button
-function fuelHtml(it){ const k=it.tank;
-  return `<div class="tank" title="Fuel tank · not connected yet: shows full until its sender is wired"><div class="dwrap"><div class="nums">${tankNums(k)}</div><div class="dial">${tankLeds(8,k)}${PUMP}</div></div></div>`; }
+// fuel gauge (owner 2026-11-27): sender wired (WEMA 240-33 Ω, black = sensor) to the Add-on on 192.168.1.162 through
+// 10k/10k (÷2), read 7.6 V at ~100 gal. Not calibrated yet: the gauge is FIXED at 100 gal (red + 4 greens = up to 85)
+// until we learn which way the voltage moves; the live sender voltage is in the tooltip. Not a tank-swap button.
+const FUEL_FIXED_LIGHTS=5;
+function fuelHtml(it){ const k=it.tank, d=dev(it.id), sv=d.raw!=null?d.raw*2:null;
+  return `<div class="tank" title="Fuel tank · shown fixed at about 100 gal (not calibrated yet) · sender ${sv==null?'no data':fmt(sv,2)+' V'}"><div class="dwrap"><div class="nums">${tankNums(k)}</div><div class="dial">${tankLeds(FUEL_FIXED_LIGHTS,k)}${PUMP}</div></div></div>`; }
 // each tank's gauge: live while its tank is connected, otherwise its last reading (kept on this phone), dimmed
 function tankHtml(it){
   if(it.tank==='fuel') return fuelHtml(it);
@@ -986,7 +989,7 @@ async function localRpc(ip,method,params={},timeoutMs){
 // mains Shellys and their boat Wi-Fi addresses (learned from Shelly Cloud whenever online; these are the known ones)
 const LOCAL_IP_DEFAULT={[ID.deckStern]:'192.168.1.21',[ID.fridge]:'192.168.1.139',[ID.bilge]:'192.168.1.244',[ID.tankFwd]:'192.168.1.154',
   [ID.anchor]:'192.168.1.180',[ID.running]:'192.168.1.225',[ID.steam]:'192.168.1.185',[ID.deckBow]:'192.168.1.165',[ID.heater]:'192.168.1.246',
-  [ID.fan]:'192.168.1.128',[ID.tankSel]:'192.168.1.52',[ID.blower]:'192.168.1.196'};
+  [ID.fan]:'192.168.1.128',[ID.tankSel]:'192.168.1.52',[ID.blower]:'192.168.1.196',[ID.fuelSh]:'192.168.1.162'};
 let localIp={...LOCAL_IP_DEFAULT,...store.get('localip',{})};
 let misses=0;   // rounds in a row in which no Shelly answered on the Wi-Fi
 let link=IN_APP&&!netOn?'local':'cloud', lastCloud=null, cloudTryAt=0;   // link: 'local' (boat Wi-Fi) or 'cloud'
@@ -1181,7 +1184,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 // ---- self-update: an installed app can stay open for days, so look for a newer published version
 // every 2 min and whenever the app comes back to the screen; reload when found (never mid-drag).
 // BUILD must change on every publish.
-const BUILD='2026-11-26.18';
+const BUILD='2026-11-27.1';
 async function checkUpdate(){
   if(!netOk()||!navigator.onLine||dragging||arranging) return;
   try{ const t=await (await fetch('./index.html?u='+Date.now(),{cache:'no-store'})).text();
