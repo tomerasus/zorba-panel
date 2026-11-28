@@ -31,14 +31,29 @@ Westerbeke generator.
 | **Orion XS 12/12-70** | Engine AGM bank → house bank charger, 70 A. |
 | **House bank** | 4 × ECO-WORTHY 12 V 280 Ah LiFePO4, Bluetooth, in parallel = **1120 Ah**. Per battery (from ECO-WORTHY listings, to confirm on the datasheet): max charge 160 A, 200 A BMS, charging cut off below about -7 °C. So the bank takes about 640 A of charge. |
 | **Engine bank** | 2 × AGM 210 Ah. Charged only by the alternator. Nothing charges it at anchor. |
-| **Generator** | Westerbeke 5CBCD (5.0 BCD), 120 V, 60/50 Hz, 1800 rpm. 5 kW ≈ 41 A at 120 V. Exact amps: from the data plate. |
+| **Generator** | Westerbeke 5.0 BCDB, 60 Hz, -614, 120 V, 1800 rpm. **Rated 41.6 A** (data plate, owner 2026-11-28). Proposed Quattro generator input limit ≈ 35 A (~85 %). |
 | **Water heater** | Electric element plus engine heat. |
-| **Victron Lynx** | All four house batteries connect through a Lynx busbar system. **Lynx Distributor** (owner, 2026-11-28): no Bluetooth, one fuse per battery. Fuse sizes: to confirm. |
+| **Victron Lynx** | All four house batteries connect through a Lynx busbar system. **Lynx Distributor** (owner, 2026-11-28): no Bluetooth, one fuse per battery. Fuses are 100 A or 200 A, owner will check. **If 100 A: too small.** A full Quattro load (~350–400 A) is ~90–100 A per battery: one fuse blows, the other three carry more and blow in a cascade. |
 
 **Bluetooth:** every Victron unit has Bluetooth except the MultiPlus Compact.
 **Links:** everything is in the VictronConnect app. The ZORBA app reads the BMV, the 4 MPPTs and the Orion XS
 over Bluetooth Instant Readout through the stern-light Shelly (scripts on device a085e3c89f78). History is
 recorded every 10 min by GitHub Actions to the `data` branch. There is no GX device (Cerbo).
+
+## Quattro outputs (owner 2026-11-28): ALL loads on AC-out-2, nothing on AC-out-1
+**To check urgently.** Victron's documentation says AC-out-2 is live only while AC (generator/shore) is accepted
+on an input; on inverter it is off. But the owner says the inverter powers the whole boat at anchor. So either the
+labels on board differ, or the wiring/config is different from the manual. Photo of the Quattro's AC terminals
+needed. Plan 8 (MultiPlus on AC-out-2) depends on this.
+
+## Charge settings for the ECO-WORTHY bank (proposal, not applied)
+ECO-WORTHY support (as relayed on the Victron forum) says 14.6 V absorption and 14.6 V float. The datasheet shows
+14.2–14.4 V and 14.6 V. Vic does **not** recommend 14.6 V float: it holds the cells at 100 % all the time, and in a
+4-battery parallel bank it makes BMS high-voltage trips likely. Vic's proposal for every charger (Quattro, MultiPlus,
+4 MPPTs, Orion XS), the same values on all:
+- Absorption 14.2 V, short fixed absorption time (~1 h), float 13.5 V, no temperature compensation.
+- Re-bulk / storage settings and the Quattro's low-DC shutdown: to set together, after checking the manuals.
+Owner to decide.
 
 ## Big 120 V loads (all through the Quattro)
 | Load | How used | Rough draw (to measure) |
@@ -89,11 +104,10 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
    day Zorba uses, compared with what the solar makes.
 
 ## Open questions for the owner
-- Westerbeke data plate: rated amps at 120 V / 60 Hz.
-- ECO-WORTHY datasheet: recommended absorption and float voltages (for the matched charger settings).
-- Panel label: Voc / Vmp (confirm the "24V" 16BB model).
-- Is anything wired to the Quattro's AC-out-2 today? Is the Quattro's 4 A starter-battery output wired to the AGMs?
-- Is there an MK3-USB cable on board (needed to set up the MultiPlus Compact, maybe also the Quattro)?
+- Lynx fuse size (100 A or 200 A).
+- Photo of the Quattro's AC output terminals and wiring (AC-out-1 / AC-out-2 question).
+- Panel label: Voc / Vmp (confirm the "24V" 16BB model). Owner will send a photo.
+- Is the Quattro's 4 A starter-battery output wired to the AGMs?
 
 ## Handoff log
 - 2026-11-28: Vic created. Read the ZORBA app and researched the units. Got the model list, battery bank,
@@ -104,3 +118,5 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
   heater, and that all units except the MultiPlus have Bluetooth. The owner wants both chargers together (~270 A):
   the AC-out-2 plan was drafted (idea 9).
 - 2026-11-28 (later): The Lynx is a Lynx Distributor. The owner OK'd saving: this file is now in the repo (branch ccr-7c41413f-6o3133, folder vic/).
+- 2026-11-28 (later): Westerbeke 5.0 BCDB 60 Hz -614, rated 41.6 A. MK3-USB is on board. Owner says all loads are on
+  Quattro AC-out-2 (to verify). Lynx fuses 100 A or 200 A (owner checking). Charge voltages proposed (14.2 / 13.5 V).
