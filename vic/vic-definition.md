@@ -27,7 +27,7 @@ Westerbeke generator.
 | **Quattro 12/5000/220 120V** + VE.Bus Smart dongle | Feeds the **whole** 120 V / 60 Hz system. Nothing gets AC except through it. Shore power only charges the batteries. When the generator runs, its power passes through the Quattro (transfer, plus PowerAssist). 220 A charger. |
 | **MultiPlus Compact 12/2000/80-50 120V** | 80 A charger. Its job: charging from **50 Hz shore power**, so the Quattro keeps the boat on its own 60 Hz. Also the backup charger if the Quattro's charger can't be used. **No Bluetooth.** Settings need an MK3-USB cable and a computer. |
 | **BMV-712 Smart** (with display) | Battery monitor for the house bank. |
-| **4 × SmartSolar MPPT 100/30** | One **Renogy RSP200D** panel each, on the arch. Label (owner photo 2026-11-28): 200 W, Voc 27 V, Isc 9.66 A, Vmp 22.6 V, Imp 8.85 A, Voc temp coef -0.28 %/°C, Pmax -0.37 %/°C, max series fuse 15 A. About 14–15 A at most per MPPT, so about **60 A / 800 W peak** in total. Each 100/30 could take twice that. |
+| **4 × SmartSolar MPPT 100/30** | One panel each, two kinds, both labelled **Renogy RSP200D, 200 W** (owner photos 2026-11-28): **Arch panels:** Voc 27 V, Isc 9.66 A, Vmp 22.6 V, Imp 8.85 A, 1650×670 mm, max series fuse 15 A. **Deck panels:** Voc 23 V, Isc 11.05 A, Vmp 19.2 V, Imp 10.42 A, 1491×699 mm, max series fuse 20 A. Both: Voc -0.28 %/°C, Pmax -0.37 %/°C. How many of each: to confirm (2 + 2?). About 14–15 A at most per MPPT, **~60 A / 800 W peak** in total. |
 | **Orion XS 12/12-70** | Engine AGM bank → house bank charger, 70 A. |
 | **House bank** | 4 × ECO-WORTHY 12 V 280 Ah LiFePO4, Bluetooth, in parallel = **1120 Ah**. Per battery (from ECO-WORTHY listings, to confirm on the datasheet): max charge 160 A, 200 A BMS, charging cut off below about -7 °C. So the bank takes about 640 A of charge. |
 | **Engine bank** | 2 × AGM 210 Ah. Charged only by the alternator. Nothing charges it at anchor. |
@@ -101,7 +101,14 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
 9. **More solar on the same MPPTs (checked with the label):** a second RSP200D in series on each 100/30 gives
    Voc 54 V (about 58 V on a 0 °C morning, under the 100 V limit) and 400 W ≈ 28–29 A at 14 V, just under the 30 A
    limit. That doubles solar to about 1600 W with the same 4 controllers. Needs deck/arch space. In series, shade on
-   one panel pulls down both.
+   one panel pulls down both. Works for the arch panels and the deck panels alike (never mix the two kinds in
+   one series string).
+9b. **Deck panels have little voltage headroom.** Vmp 19.2 V drops to about 17 V when the panel is hot, and a
+   Victron MPPT needs the panel about 5 V above the battery to start, about 1 V above to keep going. With shade
+   from the sails or boom (bypass diodes cut a third of the panel), a deck panel can fall below the battery
+   voltage and stop charging. Check: compare the deck MPPTs' daily yield history with the arch ones in
+   VictronConnect. A possible fix: the 2 deck panels in series on one MPPT (Vmp ~38 V, Voc ~49 V cold),
+   but shade then hits both. Decide after seeing the history.
 10. **Daily energy budget:** measure each big load once (Shelly power meters or the BMV) to know how many Ah a
    day Zorba uses, compared with what the solar makes.
 
@@ -125,3 +132,4 @@ Quattro limit: about 4000 W continuous (5000 VA) and about 350–400 A from the 
   is wired "in 1, out 2" (to clarify: the boat runs on inverter at anchor, so the loads must be on the always-on
   output). Owner says a generator limit with margin "will trip the fuse" (to clarify).
 - 2026-11-28 (later): Panel label read: Renogy RSP200D (Voc 27 V, Vmp 22.6 V, Isc 9.66 A). Series-doubling idea checked.
+- 2026-11-28 (later): Deck panel label read: also RSP200D, but Voc 23 V, Vmp 19.2 V, Isc 11.05 A. Low-voltage headroom noted.
