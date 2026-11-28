@@ -57,3 +57,47 @@ hist.rows = hist.rows.filter(r => r[0] > now - KEEP_S);
 hist.updated = now;
 writeFileSync(FILE, JSON.stringify(hist));
 console.log('rows kept:', hist.rows.length);
+
+// ---- latest.json: one full snapshot of what ZORBA sees, written next to history.json on every run ----
+// Readings only (the repo is public): no IPs, MACs, Wi-Fi names or keys. Decoded the same way as index.html shape().
+const NAMES = {tankSel:'acebe6f5d2a0',tankFwd:'ccba97c9ae94',running:'ccba97c998d4',steam:'a085e3c81ef4',anchor:'a085e3c9af64',
+  deckBow:'ccba97c9dca8',deckStern:'a085e3c89f78',fridge:'a085e3c82c4c',heater:'ccba97c7cd88',bilge:'a085e3c7fe24',fan:'a085e3c95784',
+  blower:'acebe6f5ac5c',fuelSh:'e8f60a7a7d34',refUp:'XB211299190193830',refDown:'XB211299198443307',frzUp:'XB211299190201445',
+  frzDown:'XB211299191545574',inverter:'XB211299192089294',mainCabin:'XB277409424835537',master:'XB9592269595983',
+  flood:'d885acea5d1c',engine:'XB211299198447892'};
+const nameOf = Object.fromEntries(Object.entries(NAMES).map(([k, v]) => [v, k]));
+const MPPT_STATE = {0:'off',2:'fault',3:'bulk',4:'absorption',5:'float',6:'storage',7:'equalize',245:'starting',247:'recondition',252:'external control'};
+const utcS = s => s ? Math.floor(new Date(s.replace(' ', 'T') + 'Z').getTime() / 1000) : null;
+const nn = x => x === '' || x == null ? null : Number(x);
+const num = k => d?.[k]?.value ?? null, cons = num('number:204');
+const fr = st['e8f60a7a7d34']?.['voltmeter:100']?.voltage;
+const fuelV = typeof fr === 'number' ? Math.round(fr * 2 * 100) / 100 : null;
+const snap = {v: 1, written: now, boatUpdated: updated || null, boatSilent: !d || now - updated > STALE_S,
+  battery: null, solar: [], alternator: null, water: null, fuelSenderV: fuelV, bilge: null, relays: {}, climate: {}, flood: null, offline: []};
+if (d && d['number:200']) {
+  snap.battery = {soc: num('number:200'), voltage: num('number:201'), current: num('number:202'), power: num('number:203'),
+    consumedAh: num('number:204'), ahLeft: cons == null ? null : Math.round(BANK_AH - Math.abs(cons)), timeToGo: d['text:205']?.value ?? null};
+}
+const segs = (d?.['text:210']?.value || '').split(';');
+snap.solar = segs.filter(p => p && p[0] !== 'A').slice(0, 4).map((p, i) => {
+  const f = p.split(','); if (f.length < 6) return {charger: i + 1, noData: true};
+  const h = f[3] ? f[3].split('|').map(nn) : [];
+  return {charger: i + 1, pvW: nn(f[0]), batteryA: nn(f[1]), todayKWh: nn(f[2]), yesterdayKWh: h[0] ?? null, history: h,
+    state: MPPT_STATE[nn(f[4])] ?? nn(f[4]), error: nn(f[5])};
+});
+const altSeg = segs.find(p => p.startsWith('A'));
+if (altSeg) { const f = altSeg.slice(1).split(',');
+  snap.alternator = {state: nn(f[1]), error: nn(f[2]), inV: nn(f[3]), outV: nn(f[4]), outA: nn(f[5]), inA: nn(f[6])}; }
+for (const [id, s] of Object.entries(st)) {
+  const k = nameOf[id] || id;
+  if ((s.cloud?.connected ?? s._dev_info?.online) === false) snap.offline.push(k);
+  if (s['switch:0']) snap.relays[k] = !!s['switch:0'].output;
+  if (s['temperature:0']) snap.climate[k] = {tC: s['temperature:0'].tC ?? null, rh: s['humidity:0']?.rh ?? null, at: utcS(s._updated)};
+  if (s['flood:0']) snap.flood = !!s['flood:0'].alarm;
+  if (id === NAMES.bilge) snap.bilge = typeof s['input:0']?.state === 'boolean' ? (s['input:0'].state ? 'wet' : 'dry') : 'unknown';
+  if (id === NAMES.tankFwd && s['voltmeter:100']?.voltage != null)
+    snap.water = {connectedTank: st[NAMES.tankSel]?.['switch:0']?.output ? 'back' : 'fwd', senderV: Math.round(s['voltmeter:100'].voltage * 3 * 100) / 100};
+}
+const LATEST = FILE.replace(/[^/]*$/, 'latest.json');
+writeFileSync(LATEST, JSON.stringify(snap, null, 1));
+console.log('snapshot written:', LATEST);
